@@ -1,4 +1,4 @@
-import { PaginatedResult, PaginationOptions } from "../../types";
+// import { PaginatedResult, PaginationOptions } from "../../types";
 import { IAddress } from "../IModel/IAddress";
 
 export interface IAddressRepository {

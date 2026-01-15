@@ -1,4 +1,4 @@
-import { UserRole, OTPType, JWTPayload, PartnerRegistrationData, PaginationOptions, PaginatedResult } from '../../types';
+import { PartnerRegistrationData, PaginationOptions, PaginatedResult } from '../../types';
 import { IPartner } from '../IModel/IPartner';
 
 /**
@@ -72,4 +72,6 @@ export interface IPartnerService {
      * @param partnerId - The partner's ID.
      */
     getDetailedVerificationStatus(partnerId: string): Promise<any>; // Using any for brevity since type is complex
+
+    sendEmailToPartner(email: string, subject: string, message: string): Promise<void>;
 }

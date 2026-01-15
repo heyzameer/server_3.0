@@ -12,6 +12,8 @@ import mongoose from 'mongoose';
 import { ILocationRepository } from '../interfaces/IRepository/ILocationRepository';
 import { IUserRepository } from '../interfaces/IRepository/IUserRepository';
 import { ILocation } from '../interfaces/IModel/ILocation';
+import { HttpStatus } from '../enums/HttpStatus';
+import { ResponseMessages } from '../enums/ResponseMessages';
 
 /**
  * Service for managing geographical locations and real-time tracking.
@@ -47,7 +49,7 @@ export class LocationService implements ILocationService {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user) {
-        throw createError('User not found', 404);
+        throw createError(ResponseMessages.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       const location = await this.locationRepository.updateUserLocation(
@@ -89,7 +91,7 @@ export class LocationService implements ILocationService {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user) {
-        throw createError('User not found', 404);
+        throw createError(ResponseMessages.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
       return this.locationRepository.getLatestLocation(userId);
     } catch (error) {
@@ -110,7 +112,7 @@ export class LocationService implements ILocationService {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user) {
-        throw createError('User not found', 404);
+        throw createError(ResponseMessages.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
       return this.locationRepository.getLocationHistory(userId, startDate, endDate, pagination);
     } catch (error) {
@@ -128,9 +130,9 @@ export class LocationService implements ILocationService {
     radiusKm: number = 10
   ): Promise<any[]> {
     try {
-      if (latitude < -90 || latitude > 90) throw createError('Invalid latitude', 400);
-      if (longitude < -180 || longitude > 180) throw createError('Invalid longitude', 400);
-      if (radiusKm <= 0 || radiusKm > 100) throw createError('Radius must be between 1 and 100 km', 400);
+      if (latitude < -90 || latitude > 90) throw createError('Invalid latitude', HttpStatus.BAD_REQUEST);
+      if (longitude < -180 || longitude > 180) throw createError('Invalid longitude', HttpStatus.BAD_REQUEST);
+      if (radiusKm <= 0 || radiusKm > 100) throw createError('Radius must be between 1 and 100 km', HttpStatus.BAD_REQUEST);
 
       const nearbyPartners = await this.locationRepository.findNearbyDeliveryPartners(
         latitude,
@@ -163,7 +165,7 @@ export class LocationService implements ILocationService {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user || user.role !== UserRole.PARTNER) {
-        throw createError('User is not a delivery partner', 400);
+        throw createError(ResponseMessages.NOT_DELIVERY_PARTNER, HttpStatus.BAD_REQUEST);
       }
 
       await this.userRepository.updateDeliveryPartnerOnlineStatus(userId, isOnline);
@@ -199,7 +201,7 @@ export class LocationService implements ILocationService {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user || user.role !== UserRole.PARTNER) {
-        throw createError('User is not a delivery partner', 400);
+        throw createError(ResponseMessages.NOT_DELIVERY_PARTNER, HttpStatus.BAD_REQUEST);
       }
 
       const stats = await this.locationRepository.getDeliveryPartnerMovementStats(
@@ -388,7 +390,7 @@ export class LocationService implements ILocationService {
    */
   async cleanupOldLocations(daysOld: number = 30): Promise<number> {
     try {
-      if (daysOld < 7) throw createError('Cannot delete locations newer than 7 days', 400);
+      if (daysOld < 7) throw createError('Cannot delete locations newer than 7 days', HttpStatus.BAD_REQUEST);
 
       const deletedCount = await this.locationRepository.cleanupOldLocations(daysOld);
       logger.info(`Cleaned up ${deletedCount} old location records older than ${daysOld} days`);

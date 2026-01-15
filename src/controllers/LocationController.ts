@@ -24,7 +24,7 @@ export class LocationController {
   /**
    * Update the user's current geographical location.
    */
-  updateLocation = asyncHandler(async (req: Request<{}, {}, UpdateLocationDto>, res: Response, _next: NextFunction) => {
+  updateLocation = asyncHandler(async (req: Request<any, any, UpdateLocationDto>, res: Response, _next: NextFunction) => {
     const userId = req.user!.userId;
     const { coordinates, ...additionalData } = req.body;
 
@@ -118,7 +118,7 @@ export class LocationController {
   /**
    * Update the online/active status of a delivery partner.
    */
-  updateOnlineStatus = asyncHandler(async (req: Request<{}, {}, OnlineStatusDto>, res: Response, _next: NextFunction) => {
+  updateOnlineStatus = asyncHandler(async (req: Request<any, any, OnlineStatusDto>, res: Response, _next: NextFunction) => {
     const userId = req.user!.userId;
     const { isOnline } = req.body;
 
@@ -206,7 +206,7 @@ export class LocationController {
   /**
    * Clean up old location logs based on age.
    */
-  cleanupOldLocations = asyncHandler(async (req: Request<{}, {}, CleanupOldLocationsDto>, res: Response, _next: NextFunction) => {
+  cleanupOldLocations = asyncHandler(async (req: Request<any, any, CleanupOldLocationsDto>, res: Response, _next: NextFunction) => {
     const { daysOld } = req.body;
 
     const deletedCount = await this.locationService.cleanupOldLocations(daysOld || 30);

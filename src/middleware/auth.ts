@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
 import { JWTPayload, UserRole } from '../types';
-import { createError } from '../utils/errorHandler';
+// import { createError } from '../utils/errorHandler';
 import { sendError } from '../utils/response';
 import config from '../config';
 
@@ -11,7 +11,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return sendError(res, 'Authentication token required', 401);
     }
@@ -22,7 +22,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     try {
       const decoded = jwt.verify(token, config.jwtSecret) as JWTPayload;
       console.log('Decoded', decoded);
-      
+
       // Check if user still exists
       const user = await User.findById(decoded.userId);
       if (!user || !user.isActive) {

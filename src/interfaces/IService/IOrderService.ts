@@ -1,4 +1,4 @@
-import { OrderStatus, DeliveryType, PaymentMethod, PaginationOptions, PaginatedResult, OrderItem, Address } from '../../types';
+import { OrderStatus, PaginationOptions, PaginatedResult } from '../../types';
 import { IOrder } from '../IModel/IOrder';
 
 export interface IOrderService {

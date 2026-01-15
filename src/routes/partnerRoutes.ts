@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { PartnerController } from '../controllers/PartnerController';
 import { validate } from '../middleware/validation';
-import { authLimiter, otpLimiter } from '../middleware/rateLimit';
+import { authLimiter } from '../middleware/rateLimit';
 import { container } from '../container/container';
-import { partnerLoginOtpSchema, partnerRegistrationSchema, partnerVerifyOtpSchema,registerPartnerSchema } from '../validators/partner';
+import { partnerLoginOtpSchema, partnerRegistrationSchema, partnerVerifyOtpSchema, registerPartnerSchema } from '../validators/partner';
 import { authenticatePartner } from '../middleware/partnerAuth';
 import { handleUploadError, partnerUpload } from '../middleware/upload';
 

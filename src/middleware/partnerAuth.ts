@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { createError } from '../utils/errorHandler';
+// import { createError } from '../utils/errorHandler';
 import { sendError } from '../utils/response';
 import config from '../config';
 import { container } from '../container/container';
@@ -17,6 +17,7 @@ interface PartnerJWTPayload {
 
 // Extend Request interface to include partner
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       partner?: {
@@ -31,10 +32,10 @@ declare global {
 export const authenticatePartner = async (req: Request, res: Response, next: NextFunction) => {
   try {
     // Get token from Authorization header
-    
+
     const authHeader = req.headers.authorization;
 
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return sendError(res, 'Access token required', 401);
     }
@@ -60,7 +61,7 @@ export const authenticatePartner = async (req: Request, res: Response, next: Nex
     }
 
     // Check if partner exists and is active
-    
+
     const partnerRepository = container.resolve(PartnerRepository);
     const partner = await partnerRepository.findById(decoded.userId);
 
@@ -86,7 +87,7 @@ export const authenticatePartner = async (req: Request, res: Response, next: Nex
       role: UserRole.PARTNER
     };
 
-    
+
     next();
   } catch (error) {
     console.error('Partner authentication error:', error);
@@ -98,7 +99,7 @@ export const authenticatePartner = async (req: Request, res: Response, next: Nex
 export const optionalPartnerAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return next(); // Continue without authentication
     }
@@ -110,7 +111,7 @@ export const optionalPartnerAuth = async (req: Request, res: Response, next: Nex
     }
 
     const decoded = jwt.verify(token, config.jwtSecret) as PartnerJWTPayload;
-    
+
     const partnerRepository = container.resolve(PartnerRepository);
     const partner = await partnerRepository.findById(decoded.userId);
 

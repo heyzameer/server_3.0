@@ -372,8 +372,7 @@ export class LocationRepository extends BaseRepository<ILocation> implements ILo
   }
 
   async getRouteOptimizationData(
-    deliveryPartnerIds: string[],
-    radiusKm: number = 50
+    deliveryPartnerIds: string[]
   ): Promise<any[]> {
     return this.aggregate([
       {

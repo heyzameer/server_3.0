@@ -1,4 +1,5 @@
 import mongoose, { Schema } from 'mongoose';
+import bcrypt from 'bcryptjs';
 import { IPartner } from '../interfaces/IModel/IPartner';
 
 export enum PartnerStatus {
@@ -12,29 +13,29 @@ const deliveryPartnerSchema = new Schema<IPartner>({
   // ============================================
   // REQUIRED FOR REGISTRATION ONLY
   // ============================================
-  partnerId: { 
-    type: String, 
-    unique: true, 
-    required: true 
+  partnerId: {
+    type: String,
+    unique: true,
+    required: true
   },
-  password: { 
-    type: String, 
-    required: true 
+  password: {
+    type: String,
+    required: true
   },
-  fullName: { 
-    type: String, 
+  fullName: {
+    type: String,
     required: true,
     trim: true
   },
-  email: { 
-    type: String, 
-    required: true, 
-    unique: true, 
+  email: {
+    type: String,
+    required: true,
+    unique: true,
     lowercase: true,
     trim: true
   },
-  phone: { 
-    type: String, 
+  phone: {
+    type: String,
     required: true,
     trim: true
   },
@@ -42,70 +43,70 @@ const deliveryPartnerSchema = new Schema<IPartner>({
   // ============================================
   // COLLECTED DURING ONBOARDING (All Optional)
   // ============================================
-  
+
   // Personal Info
-  dateOfBirth: { 
-    type: String, 
-    required: false 
+  dateOfBirth: {
+    type: String,
+    required: false
   },
-  profilePicture: { 
-    type: String, 
-    required: false 
+  profilePicture: {
+    type: String,
+    required: false
   },
 
   // References
-  addressId: { 
-    type: Schema.Types.ObjectId, 
+  addressId: {
+    type: Schema.Types.ObjectId,
     ref: 'Address',
-    required: false 
+    required: false
   },
-  vehicleId: { 
-    type: Schema.Types.ObjectId, 
+  vehicleId: {
+    type: Schema.Types.ObjectId,
     ref: 'Vehicle',
-    required: false 
+    required: false
   },
-  ratingId: { 
-    type: Schema.Types.ObjectId, 
+  ratingId: {
+    type: Schema.Types.ObjectId,
     ref: 'Rating',
-    required: false 
+    required: false
   },
-  preferenceId: { 
-    type: Schema.Types.ObjectId, 
+  preferenceId: {
+    type: Schema.Types.ObjectId,
     ref: 'Preference',
-    required: false 
+    required: false
   },
-  walletId: { 
-    type: Schema.Types.ObjectId, 
+  walletId: {
+    type: Schema.Types.ObjectId,
     ref: 'Wallet',
-    required: false 
+    required: false
   },
 
   // Personal Documents
   personalDocuments: {
     aadharFront: { type: String, required: false },
     aadharBack: { type: String, required: false },
-    aadharStatus: { 
-      type: String, 
-      enum: ['pending', 'approved', 'rejected'], 
-      default: 'pending' 
+    aadharStatus: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending'
     },
     aadharRejectionReason: { type: String, required: false },
 
     panFront: { type: String, required: false },
     panBack: { type: String, required: false },
-    panStatus: { 
-      type: String, 
-      enum: ['pending', 'approved', 'rejected'], 
-      default: 'pending' 
+    panStatus: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending'
     },
     panRejectionReason: { type: String, required: false },
 
     licenseFront: { type: String, required: false },
     licenseBack: { type: String, required: false },
-    licenseStatus: { 
-      type: String, 
-      enum: ['pending', 'approved', 'rejected'], 
-      default: 'pending' 
+    licenseStatus: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending'
     },
     licenseRejectionReason: { type: String, required: false }
   },
@@ -116,10 +117,10 @@ const deliveryPartnerSchema = new Schema<IPartner>({
     accountNumber: { type: String, required: false },
     ifscCode: { type: String, required: false },
     upiId: { type: String, required: false },
-    bankingStatus: { 
-      type: String, 
-      enum: ['pending', 'approved', 'rejected'], 
-      default: 'pending' 
+    bankingStatus: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending'
     },
     rejectionReason: { type: String, required: false }
   },
@@ -130,15 +131,15 @@ const deliveryPartnerSchema = new Schema<IPartner>({
     registrationNumber: { type: String, required: false },
     insuranceDocument: { type: String, required: false },
     pollutionDocument: { type: String, required: false },
-    insuranceStatus: { 
-      type: String, 
-      enum: ['pending', 'approved', 'rejected'], 
-      default: 'pending' 
+    insuranceStatus: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending'
     },
-    pollutionStatus: { 
-      type: String, 
-      enum: ['pending', 'approved', 'rejected'], 
-      default: 'pending' 
+    pollutionStatus: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending'
     },
     insuranceRejectionReason: { type: String, required: false },
     pollutionRejectionReason: { type: String, required: false }
@@ -147,30 +148,30 @@ const deliveryPartnerSchema = new Schema<IPartner>({
   // ============================================
   // STATUS & ACTIVITY
   // ============================================
-  isAvailable: { 
-    type: Boolean, 
-    default: false, 
-    index: true 
+  isAvailable: {
+    type: Boolean,
+    default: false,
+    index: true
   },
-  isActive: { 
-    type: Boolean, 
-    default: true, 
-    index: true 
+  isActive: {
+    type: Boolean,
+    default: true,
+    index: true
   },
-  isVerified: { 
-    type: Boolean, 
-    default: false 
+  isVerified: {
+    type: Boolean,
+    default: false
   },
-  status: { 
-    type: String, 
-    enum: Object.values(PartnerStatus), 
-    default: PartnerStatus.PENDING 
+  status: {
+    type: String,
+    enum: Object.values(PartnerStatus),
+    default: PartnerStatus.PENDING
   },
-  hasPendingRequest: { 
-    type: Boolean, 
-    default: false 
+  hasPendingRequest: {
+    type: Boolean,
+    default: false
   },
-  
+
   lastSeen: { type: Date },
   lastRequestTime: { type: Date },
   lastLocationUpdate: { type: Date },
@@ -181,37 +182,37 @@ const deliveryPartnerSchema = new Schema<IPartner>({
   // ============================================
   // COMPLETION FLAGS
   // ============================================
-  bankDetailsCompleted: { 
-    type: Boolean, 
-    default: false 
+  bankDetailsCompleted: {
+    type: Boolean,
+    default: false
   },
-  personalDocumentsCompleted: { 
-    type: Boolean, 
-    default: false 
+  personalDocumentsCompleted: {
+    type: Boolean,
+    default: false
   },
-  vehicleDetailsCompleted: { 
-    type: Boolean, 
-    default: false 
+  vehicleDetailsCompleted: {
+    type: Boolean,
+    default: false
   },
 
   // ============================================
   // ORDER STATISTICS
   // ============================================
-  totalOrders: { 
-    type: Number, 
-    default: 0 
+  totalOrders: {
+    type: Number,
+    default: 0
   },
-  ongoingOrders: { 
-    type: Number, 
-    default: 0 
+  ongoingOrders: {
+    type: Number,
+    default: 0
   },
-  completedOrders: { 
-    type: Number, 
-    default: 0 
+  completedOrders: {
+    type: Number,
+    default: 0
   },
-  canceledOrders: { 
-    type: Number, 
-    default: 0 
+  canceledOrders: {
+    type: Number,
+    default: 0
   },
 
   // ============================================
@@ -246,7 +247,7 @@ deliveryPartnerSchema.index({ partnerId: 1 });
 // ============================================
 
 // Generate partnerId automatically
-deliveryPartnerSchema.pre('save', async function(next) {
+deliveryPartnerSchema.pre('save', async function (next) {
   if (this.isNew && !this.partnerId) {
     const prefix = 'PRT';
     const timestamp = Date.now().toString().slice(-6);
@@ -257,10 +258,9 @@ deliveryPartnerSchema.pre('save', async function(next) {
 });
 
 // Hash password before saving
-deliveryPartnerSchema.pre('save', async function(next) {
+deliveryPartnerSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  
-  const bcrypt = require('bcryptjs');
+
   this.password = await bcrypt.hash(this.password, 10);
   next();
 });
@@ -270,26 +270,26 @@ deliveryPartnerSchema.pre('save', async function(next) {
 // ============================================
 
 // Check if profile is complete
-deliveryPartnerSchema.methods.isProfileComplete = function(): boolean {
-  return this.bankDetailsCompleted && 
-         this.personalDocumentsCompleted && 
-         this.vehicleDetailsCompleted;
+deliveryPartnerSchema.methods.isProfileComplete = function (): boolean {
+  return this.bankDetailsCompleted &&
+    this.personalDocumentsCompleted &&
+    this.vehicleDetailsCompleted;
 };
 
 // Calculate profile completion percentage
-deliveryPartnerSchema.methods.getProfileCompletionPercentage = function(): number {
+deliveryPartnerSchema.methods.getProfileCompletionPercentage = function (): number {
   let completed = 0;
   const totalSteps = 3;
-  
+
   if (this.bankDetailsCompleted) completed++;
   if (this.personalDocumentsCompleted) completed++;
   if (this.vehicleDetailsCompleted) completed++;
-  
+
   return Math.round((completed / totalSteps) * 100);
 };
 
 // Get next onboarding step
-deliveryPartnerSchema.methods.getNextOnboardingStep = function(): string | null {
+deliveryPartnerSchema.methods.getNextOnboardingStep = function (): string | null {
   if (!this.personalDocumentsCompleted) {
     return 'personal-documents';
   }
@@ -303,11 +303,11 @@ deliveryPartnerSchema.methods.getNextOnboardingStep = function(): string | null 
 };
 
 // Check if all documents are approved
-deliveryPartnerSchema.methods.isFullyVerified = function(): boolean {
+deliveryPartnerSchema.methods.isFullyVerified = function (): boolean {
   const docs = this.personalDocuments;
   const vehicleDocs = this.vehicalDocuments;
   const banking = this.bankingDetails;
-  
+
   return (
     docs?.aadharStatus === 'approved' &&
     docs?.panStatus === 'approved' &&
@@ -319,7 +319,7 @@ deliveryPartnerSchema.methods.isFullyVerified = function(): boolean {
 };
 
 // Get verification status
-deliveryPartnerSchema.methods.getVerificationStatus = function() {
+deliveryPartnerSchema.methods.getVerificationStatus = function () {
   return {
     registration: true, // Always true after registration
     personalDocuments: {
@@ -337,8 +337,7 @@ deliveryPartnerSchema.methods.getVerificationStatus = function() {
 };
 
 // Compare password
-deliveryPartnerSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
-  const bcrypt = require('bcryptjs');
+deliveryPartnerSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

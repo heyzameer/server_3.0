@@ -29,7 +29,7 @@ export class PartnerController {
   /**
    * Quick registration for a partner (basic details).
    */
-  registerPartner = asyncHandler(async (req: Request<{}, {}, RegisterPartnerReqDto>, res: Response, _next: NextFunction) => {
+  registerPartner = asyncHandler(async (req: Request<any, any, RegisterPartnerReqDto>, res: Response, _next: NextFunction) => {
     const { user, accessToken, refreshToken } = await (this.partnerService as PartnerService).registerPartner({
       fullName: req.body.fullName,
       email: req.body.email,
@@ -42,7 +42,7 @@ export class PartnerController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      maxAge: config.cookieExpiration ? parseInt(config.cookieExpiration.toString()) * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000, // Default to 7 days
     });
 
     sendSuccess(res, 'Partner registered successfully', {
@@ -55,7 +55,7 @@ export class PartnerController {
   /**
    * Full registration for a partner (includes documents).
    */
-  register = asyncHandler(async (req: Request<{}, {}, PartnerFullRegistrationDto>, res: Response, _next: NextFunction) => {
+  register = asyncHandler(async (req: Request<any, any, PartnerFullRegistrationDto>, res: Response, _next: NextFunction) => {
     const uploadedFiles = processPartnerFiles(req.files as { [fieldname: string]: Express.Multer.File[] });
 
     const fileUrls: { [key: string]: string } = {};
@@ -82,7 +82,7 @@ export class PartnerController {
   /**
    * Request a login OTP for a partner's email.
    */
-  requestLoginOtp = asyncHandler(async (req: Request<{}, {}, PartnerLoginOtpDto>, res: Response, _next: NextFunction) => {
+  requestLoginOtp = asyncHandler(async (req: Request<any, any, PartnerLoginOtpDto>, res: Response, _next: NextFunction) => {
     const { email } = req.body;
     const result = await this.partnerService.requestLoginOtp(email);
 
@@ -92,7 +92,7 @@ export class PartnerController {
   /**
    * Verify the login OTP and issue tokens.
    */
-  verifyLoginOtp = asyncHandler(async (req: Request<{}, {}, PartnerVerifyOtpDto>, res: Response, _next: NextFunction) => {
+  verifyLoginOtp = asyncHandler(async (req: Request<any, any, PartnerVerifyOtpDto>, res: Response, _next: NextFunction) => {
     const { email, otp } = req.body;
     const { user, accessToken, refreshToken } = await this.partnerService.verifyLoginOtp(email, otp);
 

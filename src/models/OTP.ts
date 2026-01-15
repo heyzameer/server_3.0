@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 import { OTPType, OTPStatus } from '../types';
 import { IOTP, IOTPModel } from '../interfaces/IModel/IOTP';
 
@@ -87,8 +87,8 @@ otpSchema.pre('save', function (next) {
 
 // Static method to find valid OTP
 otpSchema.statics.findValidOTP = function (
-  userId: string, 
-  type: OTPType, 
+  userId: string,
+  type: OTPType,
   code: string
 ): Promise<IOTP | null> {
   return this.findOne({
@@ -113,21 +113,21 @@ otpSchema.methods.verify = function (inputCode: string) {
   if (this.status !== OTPStatus.PENDING) {
     return { success: false, message: 'OTP is not valid' };
   }
-  
+
   if (this.expiresAt < new Date()) {
     this.status = OTPStatus.EXPIRED;
     this.save();
     return { success: false, message: 'OTP has expired' };
   }
-  
+
   if (this.attempts >= this.maxAttempts) {
     this.status = OTPStatus.FAILED;
     this.save();
     return { success: false, message: 'Maximum attempts exceeded' };
   }
-  
+
   this.attempts += 1;
-  
+
   if (this.code === inputCode) {
     this.status = OTPStatus.VERIFIED;
     this.verifiedAt = new Date();

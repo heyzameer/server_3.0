@@ -1,10 +1,10 @@
 import { UserRole } from "../../types";
-import { Document, Model, Schema, Types } from "mongoose";
+import { Document, Model, Types } from "mongoose";
 
 export interface IUser extends Document {
   fullName: string;
   email: string;
-  googleId:string;
+  googleId: string;
   phone: string;
   password: string;
   role: UserRole;
@@ -16,12 +16,12 @@ export interface IUser extends Document {
   lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
-    addressId?: Types.ObjectId;
-     preferenceId?: Types.ObjectId;
-      ratingId?: Types.ObjectId;
-       walletId?: Types.ObjectId;
-      
-  
+  addressId?: Types.ObjectId;
+  preferenceId?: Types.ObjectId;
+  ratingId?: Types.ObjectId;
+  walletId?: Types.ObjectId;
+
+
 }
 
 export interface IUserModel extends Model<IUser> {

@@ -27,7 +27,7 @@ export class OrderController {
   /**
    * Create a new delivery order.
    */
-  createOrder = asyncHandler(async (req: Request<{}, {}, CreateOrderDto>, res: Response, _next: NextFunction) => {
+  createOrder = asyncHandler(async (req: Request<any, any, CreateOrderDto>, res: Response, _next: NextFunction) => {
     const customerId = req.user!.userId;
     const orderData = {
       ...req.body,
@@ -114,7 +114,7 @@ export class OrderController {
   /**
    * Assign a delivery partner to an order (Admin only).
    */
-  assignDeliveryPartner = asyncHandler(async (req: Request<{}, {}, AssignPartnerDto>, res: Response, _next: NextFunction) => {
+  assignDeliveryPartner = asyncHandler(async (req: Request<any, any, AssignPartnerDto>, res: Response, _next: NextFunction) => {
     const { orderId, deliveryPartnerId } = req.body;
     const order = await this.orderService.assignDeliveryPartner(orderId, deliveryPartnerId);
 
@@ -136,7 +136,7 @@ export class OrderController {
   /**
    * Update the status of an order.
    */
-  updateOrderStatus = asyncHandler(async (req: Request<{ orderId: string }, {}, UpdateOrderStatusDto>, res: Response, _next: NextFunction) => {
+  updateOrderStatus = asyncHandler(async (req: Request<{ orderId: string }, any, UpdateOrderStatusDto>, res: Response, _next: NextFunction) => {
     const { orderId } = req.params;
     const { status, notes } = req.body;
     const userId = req.user!.userId;
@@ -149,7 +149,7 @@ export class OrderController {
   /**
    * Cancel an order with a reason.
    */
-  cancelOrder = asyncHandler(async (req: Request<{ orderId: string }, {}, CancelOrderDto>, res: Response, _next: NextFunction) => {
+  cancelOrder = asyncHandler(async (req: Request<{ orderId: string }, any, CancelOrderDto>, res: Response, _next: NextFunction) => {
     const { orderId } = req.params;
     const { reason } = req.body;
     const cancelledBy = req.user!.userId;
@@ -162,7 +162,7 @@ export class OrderController {
   /**
    * Verify the pickup OTP code.
    */
-  verifyPickupOTP = asyncHandler(async (req: Request<{ orderId: string }, {}, VerifyOTPDto>, res: Response, _next: NextFunction) => {
+  verifyPickupOTP = asyncHandler(async (req: Request<{ orderId: string }, any, VerifyOTPDto>, res: Response, _next: NextFunction) => {
     const { orderId } = req.params;
     const { code } = req.body;
     const deliveryPartnerId = req.user!.userId;
@@ -175,7 +175,7 @@ export class OrderController {
   /**
    * Verify the delivery OTP code.
    */
-  verifyDeliveryOTP = asyncHandler(async (req: Request<{ orderId: string }, {}, VerifyOTPDto>, res: Response, _next: NextFunction) => {
+  verifyDeliveryOTP = asyncHandler(async (req: Request<{ orderId: string }, any, VerifyOTPDto>, res: Response, _next: NextFunction) => {
     const { orderId } = req.params;
     const { code } = req.body;
     const deliveryPartnerId = req.user!.userId;
@@ -188,7 +188,7 @@ export class OrderController {
   /**
    * Rate an order after delivery.
    */
-  rateOrder = asyncHandler(async (req: Request<{ orderId: string }, {}, RateOrderDto>, res: Response, _next: NextFunction) => {
+  rateOrder = asyncHandler(async (req: Request<{ orderId: string }, any, RateOrderDto>, res: Response, _next: NextFunction) => {
     const { orderId } = req.params;
     const { rating, comment, ratingType } = req.body;
 

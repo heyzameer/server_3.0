@@ -165,7 +165,8 @@ export interface AppConfig {
   jwtSecret: string;
   jwtExpiration: string | number;
   jwtRefreshExpiration: string | number;
-  cookieExpiration:  number;
+  cookieExpiration: number;
+  maxSizeLimit: string;
   database: DatabaseConfig;
   cors: {
     origin: string;
@@ -200,6 +201,11 @@ export interface AppConfig {
       pass: string;
     };
   };
+  logs: {
+    level: string;
+    maxSize: string;
+    maxFiles: string;
+  };
 }
 
 export interface CustomError extends Error {
@@ -214,6 +220,7 @@ export interface RequestUser {
 }
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       user?: RequestUser;

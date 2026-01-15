@@ -1,4 +1,4 @@
-import { OTPType, OTPStatus } from '../../types';
+import { OTPType } from '../../types';
 import { IOTP } from '../IModel/IOTP';
 
 export interface IOTPRepository {

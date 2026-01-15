@@ -1,4 +1,4 @@
-import { UserRole, PaginationOptions, PaginatedResult, Address } from '../../types';
+import { PaginationOptions, PaginatedResult, Address } from '../../types';
 import { IAddress } from '../IModel/IAddress';
 import { IUser } from '../IModel/IUser';
 

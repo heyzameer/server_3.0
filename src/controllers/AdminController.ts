@@ -5,6 +5,7 @@ import { sendSuccess } from "../utils/response";
 import { Request, Response, NextFunction } from "express";
 import { inject, injectable } from "tsyringe";
 import { IPartnerService } from "../interfaces/IService/IPartnerService";
+import config from "../config";
 
 /**
  * Controller for admin-related operations.
@@ -22,7 +23,7 @@ export class AdminController {
    * Handle admin login and issue tokens.
    */
   adminLogin = asyncHandler(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response, _next: NextFunction) => {
       const { email, password } = req.body;
       const { user, accessToken, refreshToken } =
         await this.authService.adminLogin(email, password);
@@ -31,7 +32,7 @@ export class AdminController {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        maxAge: config.cookieExpiration ? parseInt(config.cookieExpiration.toString()) * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000, // Default to 7 days
       });
 
       sendSuccess(res, "Admin login successful", {
@@ -46,7 +47,7 @@ export class AdminController {
    * Get all users with pagination and optional filtering by role.
    */
   getAllUsers = asyncHandler(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response, _next: NextFunction) => {
       const page = Number(req.query.page) || 1;
       const limit = Number(req.query.limit) || 10;
       const filter: any = {};
@@ -61,7 +62,7 @@ export class AdminController {
    * Get user details by ID.
    */
   getUserById = asyncHandler(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response, _next: NextFunction) => {
       const userId = req.params.id;
       const user = await this.userService.getUserById(userId);
       sendSuccess(res, "Fetched user details", { user });
@@ -72,7 +73,7 @@ export class AdminController {
    * Update user status (activate/deactivate).
    */
   updateUserStatus = asyncHandler(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response, _next: NextFunction) => {
       const userId = req.params.id;
       const updateData = req.body;
       const updatedUser = await this.userService.updateUserStatus(userId, updateData);
@@ -84,7 +85,7 @@ export class AdminController {
    * Update the status of a partner (activate/deactivate).
    */
   updatePartnerStatus = asyncHandler(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response, _next: NextFunction) => {
       const partnerId = req.params.id;
       const updateData = req.body;
       const updatedPartner = await this.partnerService.updatePartnerStatus(partnerId, updateData);
@@ -96,7 +97,7 @@ export class AdminController {
    * Get all partners with pagination.
    */
   getAllPartners = asyncHandler(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response, _next: NextFunction) => {
       const page = Number(req.query.page) || 1;
       const limit = Number(req.query.limit) || 10;
 
@@ -109,7 +110,7 @@ export class AdminController {
    * Get all partner requests with pagination.
    */
   getAllPartnersRequest = asyncHandler(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response, _next: NextFunction) => {
       const page = Number(req.query.page) || 1;
       const limit = Number(req.query.limit) || 10;
       const filter: any = {};
@@ -123,7 +124,7 @@ export class AdminController {
    * Get detailed verification status of a partner.
    */
   getDetailedVerificationStatus = asyncHandler(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response, _next: NextFunction) => {
       const partnerId = req.params.id;
       const status = await this.partnerService.getDetailedVerificationStatus(partnerId);
       sendSuccess(res, "Fetched detailed verification status", { status });
@@ -134,7 +135,7 @@ export class AdminController {
    * Update the verification status of a partner's document.
    */
   updatePartnerDocumentStatus = asyncHandler(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response, _next: NextFunction) => {
       const partnerId = req.params.id;
       const { documentType, status, rejectionReason } = req.body;
       await this.partnerService.updateDocumentStatus(partnerId, documentType, status, rejectionReason);
@@ -146,10 +147,20 @@ export class AdminController {
    * Get partner details by ID.
    */
   getPartnerDetails = asyncHandler(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response, _next: NextFunction) => {
       const partnerId = req.params.id;
       const partner = await this.partnerService.getCurrentPartner(partnerId);
       sendSuccess(res, "Fetched partner details", { partner });
+    }
+  );
+
+  /**   * Send an email to a partner.
+   */
+  sendPartnerEmail = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction) => {
+      const { email, subject, message } = req.body;
+      await this.partnerService.sendEmailToPartner(email, subject, message);
+      sendSuccess(res, "Email sent to partner successfully");
     }
   );
 }

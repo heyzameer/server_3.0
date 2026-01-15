@@ -6,6 +6,7 @@ import { JWTPayload, UserRole, NotificationPayload } from '../types';
 import { logger } from '../utils/logger';
 import config from '../config';
 import { LocationRepository } from '../repositories/LocationRepository';
+import { ResponseMessages } from '../enums/ResponseMessages';
 
 interface AuthenticatedSocket extends Socket {
   user?: {
@@ -34,16 +35,16 @@ export class SocketService {
     this.io.use(async (socket: AuthenticatedSocket, next) => {
       try {
         const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
-        
+
         if (!token) {
-          return next(new Error('Authentication token required'));
+          return next(new Error(ResponseMessages.AUTH_TOKEN_REQUIRED));
         }
 
         const decoded = jwt.verify(token, config.jwtSecret) as JWTPayload;
         const user = await this.userRepository.findById(decoded.userId);
-        
+
         if (!user || !user.isActive) {
-          return next(new Error('User not found or inactive'));
+          return next(new Error(ResponseMessages.USER_NOT_FOUND_OR_INACTIVE));
         }
 
         socket.user = {
@@ -54,7 +55,7 @@ export class SocketService {
 
         next();
       } catch (error) {
-        next(new Error('Invalid token'));
+        next(new Error(ResponseMessages.INVALID_TOKEN));
       }
     });
 
@@ -68,17 +69,17 @@ export class SocketService {
   private handleConnection(socket: AuthenticatedSocket): void {
     const userId = socket.user!.userId;
     const role = socket.user!.role;
-    
+
     // Store user connection
     this.connectedUsers.set(userId, socket.id);
     logger.info(`User connected: ${userId} (${role})`);
 
     // Join user to their personal room
     socket.join(`user:${userId}`);
-    
+
     // Join role-based rooms
     socket.join(`role:${role}`);
-    
+
     // Join delivery partners to location tracking room
     if (role === UserRole.PARTNER) {
       socket.join('PARTNERs');
@@ -143,17 +144,17 @@ export class SocketService {
 
   private async handleDeliveryPartnerConnection(socket: AuthenticatedSocket): Promise<void> {
     const userId = socket.user!.userId;
-    
+
     try {
       // Update delivery partner online status
       await this.userRepository.updateDeliveryPartnerOnlineStatus(userId, true);
-      
+
       // Broadcast to admins that a delivery partner came online
       this.io.to('admins').emit('PARTNER_online', {
         userId,
         timestamp: new Date(),
       });
-      
+
     } catch (error) {
       logger.error('Error handling delivery partner connection:', error);
     }
@@ -161,7 +162,7 @@ export class SocketService {
 
   private async handleLocationUpdate(socket: AuthenticatedSocket, data: any): Promise<void> {
     const userId = socket.user!.userId;
-    
+
     try {
       // Update location in database
       await this.locationRepository.updateUserLocation(userId, data.coordinates, {
@@ -202,17 +203,17 @@ export class SocketService {
 
   private async handleOnlineStatusUpdate(socket: AuthenticatedSocket, data: { isOnline: boolean }): Promise<void> {
     const userId = socket.user!.userId;
-    
+
     try {
       await this.userRepository.updateDeliveryPartnerOnlineStatus(userId, data.isOnline);
-      
+
       // Broadcast status change
       this.io.to('admins').emit('PARTNER_status_change', {
         userId,
         isOnline: data.isOnline,
         timestamp: new Date(),
       });
-      
+
     } catch (error) {
       logger.error('Error handling online status update:', error);
     }
@@ -221,7 +222,7 @@ export class SocketService {
   private async handleMessage(socket: AuthenticatedSocket, data: any): Promise<void> {
     const senderId = socket.user!.userId;
     const { recipientId, message, orderId } = data;
-    
+
     try {
       // Basic message validation
       if (!recipientId || !message) {
@@ -239,15 +240,15 @@ export class SocketService {
 
       // Send to recipient if online
       this.io.to(`user:${recipientId}`).emit('new_message', messageData);
-      
+
       // Send confirmation to sender
       socket.emit('message_sent', messageData);
-      
+
       // If message is related to an order, emit to order room
       if (orderId) {
         socket.to(`order:${orderId}`).emit('order_message', messageData);
       }
-      
+
     } catch (error) {
       logger.error('Error handling message:', error);
       socket.emit('error', { message: 'Failed to send message' });
@@ -257,22 +258,22 @@ export class SocketService {
   private handleDisconnection(socket: AuthenticatedSocket): void {
     const userId = socket.user!.userId;
     const role = socket.user!.role;
-    
+
     // Remove from connected users
     this.connectedUsers.delete(userId);
-    
+
     // Update delivery partner status if applicable
     if (role === UserRole.PARTNER) {
       this.userRepository.updateDeliveryPartnerOnlineStatus(userId, false)
         .catch(error => logger.error('Error updating delivery partner offline status:', error));
-      
+
       // Notify admins
       this.io.to('admins').emit('PARTNER_offline', {
         userId,
         timestamp: new Date(),
       });
     }
-    
+
     logger.info(`User disconnected: ${userId} (${role})`);
   }
 

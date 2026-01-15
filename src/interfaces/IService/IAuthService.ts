@@ -1,4 +1,4 @@
-import { UserRole, OTPType, JWTPayload } from '../../types';
+import { OTPType, JWTPayload } from '../../types';
 import { IUser } from '../IModel/IUser';
 
 export interface IAuthService {
