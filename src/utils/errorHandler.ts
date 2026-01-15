@@ -20,8 +20,9 @@ export const createError = (message: string, statusCode: number = 500): AppError
   return new AppError(message, statusCode);
 };
 
-export const handleError = (error: CustomError, req: Request, res: Response, next: NextFunction) => {
-  let { statusCode = 500, message } = error;
+export const handleError = (error: CustomError, req: Request, res: Response, _next: NextFunction) => {
+  const statusCode = error.statusCode || 500;
+  let message = error.message;
 
   // Log error
   logger.error(`Error ${statusCode}: ${message}`, {
@@ -45,7 +46,7 @@ export const handleError = (error: CustomError, req: Request, res: Response, nex
   });
 };
 
-export const asyncHandler = (fn: Function) => {
+export const asyncHandler = (fn: any) => {
   return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };

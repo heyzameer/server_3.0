@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { AuthController } from '../controllers/AuthController';
-import { validate, validateParams } from '../middleware/validation';
+import { validate } from '../middleware/validation';
 import { authenticate } from '../middleware/auth';
 import { authLimiter, otpLimiter } from '../middleware/rateLimit';
 import { container } from '../container/container';

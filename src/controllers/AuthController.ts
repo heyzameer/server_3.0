@@ -15,6 +15,7 @@ import {
   VerifyOTPDto,
   ValidateTokenDto
 } from '../dtos/auth.dto';
+import config from '../config';
 
 @injectable()
 /**
@@ -35,14 +36,14 @@ export class AuthController {
    * @param next - Express next function.
    * @returns Promise<void> - Sends a success response with user tokens.
    */
-  register = asyncHandler(async (req: Request<{}, {}, RegisterRequestDto>, res: Response, next: NextFunction) => {
+  register = asyncHandler(async (req: Request<any, any, RegisterRequestDto>, res: Response, _next: NextFunction) => {
     const { user, accessToken, refreshToken } = await this.authService.register(req.body);
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      maxAge: config.cookieExpiration ? parseInt(config.cookieExpiration.toString()) * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000, // Default to 7 days
     });
 
     sendSuccess(res, 'User registered successfully', {
@@ -61,7 +62,7 @@ export class AuthController {
    * @param next - Express next function.
    * @returns Promise<void> - Sends a success response with tokens.
    */
-  login = asyncHandler(async (req: Request<{}, {}, LoginRequestDto>, res: Response, next: NextFunction) => {
+  login = asyncHandler(async (req: Request<any, any, LoginRequestDto>, res: Response, _next: NextFunction) => {
 
     const { email, password } = req.body;
     const { user, accessToken, refreshToken } = await this.authService.login(email, password);
@@ -70,7 +71,7 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      maxAge: config.cookieExpiration ? parseInt(config.cookieExpiration.toString()) * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000, // Default to 7 days
     });
 
     sendSuccess(res, 'Login successful', {
@@ -88,7 +89,7 @@ export class AuthController {
    * @param next - Express next function.
    * @returns Promise<void> - Sends success message if OTP sent.
    */
-  requestPasswordReset = asyncHandler(async (req: Request<{}, {}, RequestPasswordResetDto>, res: Response, next: NextFunction) => {
+  requestPasswordReset = asyncHandler(async (req: Request<any, any, RequestPasswordResetDto>, res: Response, _next: NextFunction) => {
     const { email } = req.body;
     await this.authService.requestPasswordReset(email);
 
@@ -103,7 +104,7 @@ export class AuthController {
    * @param next - Express next function.
    * @returns Promise<void> - Sends success message.
    */
-  resetPassword = asyncHandler(async (req: Request<{}, {}, ResetPasswordDto>, res: Response, next: NextFunction) => {
+  resetPassword = asyncHandler(async (req: Request<any, any, ResetPasswordDto>, res: Response, _next: NextFunction) => {
     const { email, otp, password } = req.body;
     await this.authService.resetPassword(email, otp, password);
 
@@ -118,7 +119,7 @@ export class AuthController {
    * @param next - Express next function.
    * @returns Promise<void> - Sends success message.
    */
-  changePassword = asyncHandler(async (req: Request<{}, {}, ChangePasswordDto>, res: Response, next: NextFunction) => {
+  changePassword = asyncHandler(async (req: Request<any, any, ChangePasswordDto>, res: Response, _next: NextFunction) => {
     const { currentPassword, newPassword } = req.body;
     const userId = req.user!.userId;
 
@@ -135,7 +136,7 @@ export class AuthController {
    * @param next - Express next function.
    * @returns Promise<void> - Sends success message.
    */
-  requestOTP = asyncHandler(async (req: Request<{}, {}, RequestOTPDto>, res: Response, next: NextFunction) => {
+  requestOTP = asyncHandler(async (req: Request<any, any, RequestOTPDto>, res: Response, _next: NextFunction) => {
     const { type } = req.body;
     const userId = req.user!.userId;
 
@@ -153,8 +154,8 @@ export class AuthController {
    * @param next - Express next function.
    * @returns Promise<void> - Sends success message.
    */
-  requestResendOTP = asyncHandler(async (req: Request<{}, {}, ResendOTPDto>, res: Response, next: NextFunction) => {
-    const { type, email } = req.body;
+  requestResendOTP = asyncHandler(async (req: Request<any, any, ResendOTPDto>, res: Response, _next: NextFunction) => {
+    const { type } = req.body;
     const userId = req.user!.userId;
 
     await this.authService.generateVerificationOTPs(userId, type as OTPType);
@@ -171,7 +172,7 @@ export class AuthController {
    * @param next - Express next function.
    * @returns Promise<void> - Sends success message.
    */
-  verifyOTP = asyncHandler(async (req: Request<{}, {}, VerifyOTPDto>, res: Response, next: NextFunction) => {
+  verifyOTP = asyncHandler(async (req: Request<any, any, VerifyOTPDto>, res: Response, _next: NextFunction) => {
     const { code, type } = req.body;
     const userId = req.user!.userId;
 
@@ -188,7 +189,7 @@ export class AuthController {
    * @param next - Express next function.
    * @returns Promise<void> - Returns new access token.
    */
-  refreshToken = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  refreshToken = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
     // TODO: Consider using a logger instead of console.log
     // console.log('Token Refreshing Called....');
 
@@ -211,7 +212,7 @@ export class AuthController {
    * @param next - Express next function.
    * @returns Promise<void> - Clears cookies and sends success message.
    */
-  logout = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  logout = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
     const userId = req.user!.userId;
     await this.authService.logout(userId);
     res.clearCookie('refreshToken', {
@@ -232,7 +233,7 @@ export class AuthController {
    * @param next - Express next function.
    * @returns Promise<void> - Returns user profile.
    */
-  getProfile = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  getProfile = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
     const token = req.headers.authorization?.split(' ')[1];
 
     if (!token) {
@@ -253,7 +254,7 @@ export class AuthController {
    * @param next - Express next function.
    * @returns Promise<void> - Returns token validity.
    */
-  validateToken = asyncHandler(async (req: Request<{}, {}, ValidateTokenDto>, res: Response, next: NextFunction) => {
+  validateToken = asyncHandler(async (req: Request<any, any, ValidateTokenDto>, res: Response, _next: NextFunction) => {
     const { token } = req.body;
 
     const payload = await this.authService.validateToken(token);

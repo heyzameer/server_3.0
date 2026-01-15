@@ -1,4 +1,4 @@
-import { PartnerDocumentType } from "../../types";
+// import { PartnerDocumentType } from "../../types";
 import { IPartner } from "../IModel/IPartner";
 
 export interface IPartnerRepository {

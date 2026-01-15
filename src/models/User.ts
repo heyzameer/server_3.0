@@ -12,10 +12,10 @@ const userSchema = new Schema<IUser>(
       maxlength: [100, 'Full name must not exceed 100 characters'],
       match: [/^[a-zA-Z\s]+$/, 'Full name should contain only letters and spaces'],
     },
-    googleId:{
-      type:String,
-      unique:true,
-      sparse:true
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true
     },
     email: {
       type: String,
@@ -30,7 +30,7 @@ const userSchema = new Schema<IUser>(
       required: [true, 'Phone number is required'],
       unique: true,
       trim: true,
-      match: [/^[\+]?[1-9][\d]{0,15}$/, 'Please enter a valid phone number'],
+      match: [/^[+]?[1-9][\d]{0,15}$/, 'Please enter a valid phone number'],
     },
     password: {
       type: String,
@@ -63,9 +63,9 @@ const userSchema = new Schema<IUser>(
       type: Date,
     },
     addressId: { type: Schema.Types.ObjectId, ref: 'Address' },
-preferenceId: { type: Schema.Types.ObjectId, ref: 'Preference' },
-ratingId: { type: Schema.Types.ObjectId, ref: 'Rating' },
-walletId: { type: Schema.Types.ObjectId, ref: 'Wallet' },
+    preferenceId: { type: Schema.Types.ObjectId, ref: 'Preference' },
+    ratingId: { type: Schema.Types.ObjectId, ref: 'Rating' },
+    walletId: { type: Schema.Types.ObjectId, ref: 'Wallet' },
 
   },
   {

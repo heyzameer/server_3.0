@@ -1,4 +1,4 @@
-import { UserRepository } from '../repositories/UserRepository';
+// import { UserRepository } from '../repositories/UserRepository';
 import { UserRole, PaginationOptions, PaginatedResult, Address } from '../types';
 import { createError } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
@@ -10,6 +10,8 @@ import { comparePassword, hashPassword } from '../utils/helpers';
 import { IAddressRepository } from '../interfaces/IRepository/IAddressRepository';
 import { IAddress } from '../interfaces/IModel/IAddress';
 import { UpdateProfileDto } from '../dtos/user.dto';
+import { HttpStatus } from '../enums/HttpStatus';
+import { ResponseMessages } from '../enums/ResponseMessages';
 
 /**
  * Service for handling user-related operations.
@@ -31,7 +33,7 @@ export class UserService implements IUserService {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user) {
-        throw createError('User not found', 404);
+        throw createError(ResponseMessages.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
       return user;
     } catch (error) {
@@ -53,29 +55,29 @@ export class UserService implements IUserService {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user) {
-        throw createError('User not found', 404);
+        throw createError(ResponseMessages.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       if (updateData.phone && updateData.phone !== user.phone) {
         const existingUser = await this.userRepository.findByPhone(updateData.phone);
         if (existingUser && existingUser._id.toString() !== userId) {
-          throw createError('Phone number already registered', 400);
+          throw createError(ResponseMessages.PHONE_ALREADY_REGISTERED, HttpStatus.BAD_REQUEST);
         }
       }
 
       // Handle password change if requested
       if (updateData.currentPassword || updateData.newPassword) {
         if (!updateData.currentPassword || !updateData.newPassword) {
-          throw createError('Both current and new password are required', 400);
+          throw createError(ResponseMessages.BOTH_PASSWORDS_REQUIRED, HttpStatus.BAD_REQUEST);
         }
 
         if (!user.password) {
-          throw createError('This account does not have a password set', 400);
+          throw createError(ResponseMessages.NO_PASSWORD_SET, HttpStatus.BAD_REQUEST);
         }
 
         const isPasswordValid = await comparePassword(updateData.currentPassword, user.password);
         if (!isPasswordValid) {
-          throw createError('Current password is incorrect', 400);
+          throw createError(ResponseMessages.CURRENT_PASSWORD_INCORRECT, HttpStatus.BAD_REQUEST);
         }
 
         updateData.password = await hashPassword(updateData.newPassword);
@@ -88,7 +90,7 @@ export class UserService implements IUserService {
 
       const updatedUser = await this.userRepository.update(userId, dbUpdateData);
       if (!updatedUser) {
-        throw createError('Failed to update profile', 500);
+        throw createError(ResponseMessages.PROFILE_UPDATE_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
       logger.info(`Profile updated for user: ${userId}`);
@@ -113,12 +115,12 @@ export class UserService implements IUserService {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user) {
-        throw createError('User not found', 404);
+        throw createError(ResponseMessages.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       const updatedUser = await this.userRepository.update(userId, updateData);
       if (!updatedUser) {
-        throw createError('Failed to update user status', 500);
+        throw createError(ResponseMessages.USER_STATUS_UPDATE_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
       logger.info(`User status updated for user: ${userId}`);
@@ -181,7 +183,7 @@ export class UserService implements IUserService {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user) {
-        throw createError('User not found', 404);
+        throw createError(ResponseMessages.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
       return user;
     } catch (error) {
@@ -197,12 +199,12 @@ export class UserService implements IUserService {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user) {
-        throw createError('User not found', 404);
+        throw createError(ResponseMessages.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       const updatedUser = await this.userRepository.update(userId, { isActive: false });
       if (!updatedUser) {
-        throw createError('Failed to deactivate user', 500);
+        throw createError(ResponseMessages.DEACTIVATE_USER_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
       logger.info(`User deactivated: ${userId}`);
@@ -220,12 +222,12 @@ export class UserService implements IUserService {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user) {
-        throw createError('User not found', 404);
+        throw createError(ResponseMessages.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       const updatedUser = await this.userRepository.update(userId, { isActive: true });
       if (!updatedUser) {
-        throw createError('Failed to activate user', 500);
+        throw createError(ResponseMessages.ACTIVATE_USER_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
       logger.info(`User activated: ${userId}`);
@@ -243,7 +245,7 @@ export class UserService implements IUserService {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user) {
-        throw createError('User not found', 404);
+        throw createError(ResponseMessages.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       const addedaddress = await this.addressRepository.createAddress({
@@ -267,7 +269,7 @@ export class UserService implements IUserService {
     try {
       const address = await this.addressRepository.findById(addressId);
       if (!address || address.owner?.toString() !== userId) {
-        throw createError('Address not found', 404);
+        throw createError(ResponseMessages.ADDRESS_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
       return address;
     } catch (error) {
@@ -283,12 +285,12 @@ export class UserService implements IUserService {
     try {
       const address = await this.addressRepository.findById(addressId);
       if (!address || address.owner?.toString() !== userId) {
-        throw createError('Address not found', 404);
+        throw createError(ResponseMessages.ADDRESS_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       const updatedAddress = await this.addressRepository.updateAddress(userId, addressId, newAddress);
       if (!updatedAddress) {
-        throw createError('Failed to update address', 500);
+        throw createError(ResponseMessages.ADDRESS_UPDATE_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
       logger.info(`Address updated for user: ${userId}`);
@@ -306,12 +308,12 @@ export class UserService implements IUserService {
     try {
       const address = await this.addressRepository.findById(addressId);
       if (!address || address.owner?.toString() !== userId) {
-        throw createError('Address not found', 404);
+        throw createError(ResponseMessages.ADDRESS_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       const isDeleted = await this.addressRepository.deleteAddress(addressId, userId);
       if (!isDeleted) {
-        throw createError('Failed to remove address', 500);
+        throw createError(ResponseMessages.ADDRESS_REMOVE_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
       logger.info(`Address removed for user: ${userId}`);
@@ -329,12 +331,12 @@ export class UserService implements IUserService {
     try {
       const address = await this.addressRepository.findById(addressId);
       if (!address || address.owner?.toString() !== userId) {
-        throw createError('Address not found', 404);
+        throw createError(ResponseMessages.ADDRESS_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       const isSetDefault = await this.addressRepository.setDefaultAddress(userId, addressId, !address.isDefault);
       if (!isSetDefault) {
-        throw createError('Failed to set default address', 500);
+        throw createError(ResponseMessages.ADDRESS_SET_DEFAULT_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
       logger.info(`Address set default for user: ${userId}`);
@@ -352,7 +354,7 @@ export class UserService implements IUserService {
     try {
       const addresses = await this.addressRepository.findByUserId(userId);
       if (!addresses) {
-        throw createError('Addresses not found', 404);
+        throw createError(ResponseMessages.ADDRESSES_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
       return addresses;
     } catch (error) {
@@ -430,11 +432,11 @@ export class UserService implements IUserService {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user) {
-        throw createError('User not found', 404);
+        throw createError(ResponseMessages.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       if (user.role !== UserRole.PARTNER) {
-        throw createError('User is not a delivery partner', 400);
+        throw createError(ResponseMessages.NOT_DELIVERY_PARTNER, HttpStatus.BAD_REQUEST);
       }
 
       const updateFields: any = {};
@@ -444,7 +446,7 @@ export class UserService implements IUserService {
 
       const updatedUser = await this.userRepository.update(userId, updateFields);
       if (!updatedUser) {
-        throw createError('Failed to update delivery partner info', 500);
+        throw createError(ResponseMessages.PARTNER_INFO_UPDATE_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
       logger.info(`Delivery partner info updated for user: ${userId}`);
@@ -462,12 +464,12 @@ export class UserService implements IUserService {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user || user.role !== UserRole.PARTNER) {
-        throw createError('Valid delivery partner not found', 404);
+        throw createError(ResponseMessages.VALID_PARTNER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       const updatedUser = await this.userRepository.updateDeliveryPartnerOnlineStatus(userId, isOnline);
       if (!updatedUser) {
-        throw createError('Failed to update online status', 500);
+        throw createError(ResponseMessages.ONLINE_STATUS_UPDATE_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
       logger.info(`Delivery partner online status updated: ${userId} - ${isOnline}`);
@@ -506,7 +508,7 @@ export class UserService implements IUserService {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user || user.role !== UserRole.PARTNER) {
-        throw createError('Delivery partner not found', 404);
+        throw createError(ResponseMessages.DELIVERY_PARTNER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       const updatedUser = await this.userRepository.update(userId, {
@@ -514,7 +516,7 @@ export class UserService implements IUserService {
       });
 
       if (!updatedUser) {
-        throw createError('Failed to verify documents', 500);
+        throw createError(ResponseMessages.DOCUMENTS_VERIFY_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
       logger.info(`Delivery partner documents verified: ${userId}`);
@@ -532,12 +534,12 @@ export class UserService implements IUserService {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user || user.role !== UserRole.PARTNER) {
-        throw createError('Delivery partner not found', 404);
+        throw createError(ResponseMessages.DELIVERY_PARTNER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       const updatedUser = await this.userRepository.updateDeliveryPartnerRating(userId, newRating);
       if (!updatedUser) {
-        throw createError('Failed to update rating', 500);
+        throw createError(ResponseMessages.RATING_UPDATE_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
       logger.info(`Delivery partner rating updated: ${userId} - ${newRating}`);
@@ -554,7 +556,7 @@ export class UserService implements IUserService {
   async searchUsers(searchTerm: string, pagination: PaginationOptions): Promise<PaginatedResult<IUser>> {
     try {
       if (!searchTerm || searchTerm.trim().length < 2) {
-        throw createError('Search term must be at least 2 characters', 400);
+        throw createError(ResponseMessages.SEARCH_TERM_TOO_SHORT, HttpStatus.BAD_REQUEST);
       }
 
       const result = await this.userRepository.searchUsers(searchTerm.trim(), pagination);

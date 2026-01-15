@@ -13,7 +13,10 @@ import {
 import { createError } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
 import { generateOTP, calculateDistance } from '../utils/helpers';
+import { HttpStatus } from '../enums/HttpStatus';
+import { ResponseMessages } from '../enums/ResponseMessages';
 import { inject, injectable } from 'tsyringe';
+import mongoose from 'mongoose';
 import { IUserRepository } from '../interfaces/IRepository/IUserRepository';
 import { IOrderRepository } from '../interfaces/IRepository/IOrderRepository';
 import { IOTPRepository } from '../interfaces/IRepository/IOTPRepository';
@@ -52,7 +55,7 @@ export class OrderService implements IOrderService {
     try {
       const customer = await this.userRepository.findById(orderData.customerId);
       if (!customer) {
-        throw createError('Customer not found', 404);
+        throw createError(ResponseMessages.CUSTOMER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       const pricing = await this.calculatePricing(
@@ -78,7 +81,7 @@ export class OrderService implements IOrderService {
       );
 
       const order = await this.orderRepository.create({
-        userId: new (require('mongoose').Types.ObjectId)(orderData.customerId),
+        userId: new mongoose.Types.ObjectId(orderData.customerId),
         pickupAddress: orderData.pickupAddress,
         deliveryAddress: orderData.deliveryAddress,
         deliveryType: orderData.deliveryType || DeliveryType.STANDARD,
@@ -121,7 +124,7 @@ export class OrderService implements IOrderService {
     try {
       const order = await this.orderRepository.findById(orderId);
       if (!order) {
-        throw createError('Order not found', 404);
+        throw createError(ResponseMessages.ORDER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
       return order;
     } catch (error) {
@@ -137,7 +140,7 @@ export class OrderService implements IOrderService {
     try {
       const order = await this.orderRepository.findByOrderNumber(orderNumber);
       if (!order) {
-        throw createError('Order not found', 404);
+        throw createError(ResponseMessages.ORDER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
       return order;
     } catch (error) {
@@ -210,25 +213,25 @@ export class OrderService implements IOrderService {
     try {
       const order = await this.orderRepository.findById(orderId);
       if (!order) {
-        throw createError('Order not found', 404);
+        throw createError(ResponseMessages.ORDER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       if (order.deliveryPartnerId) {
-        throw createError('Order already assigned to a delivery partner', 400);
+        throw createError(ResponseMessages.ORDER_ALREADY_ASSIGNED, HttpStatus.BAD_REQUEST);
       }
 
       if (order.status !== OrderStatus.PENDING) {
-        throw createError('Order cannot be assigned in current status', 400);
+        throw createError(ResponseMessages.ORDER_CANNOT_ASSIGN, HttpStatus.BAD_REQUEST);
       }
 
       const deliveryPartner = await this.userRepository.findById(deliveryPartnerId);
       if (!deliveryPartner || !deliveryPartner.isActive) {
-        throw createError('Delivery partner not found or ineligible', 400);
+        throw createError(ResponseMessages.PARTNER_NOT_FOUND_OR_INELIGIBLE, HttpStatus.BAD_REQUEST);
       }
 
       const updatedOrder = await this.orderRepository.assignDeliveryPartner(orderId, deliveryPartnerId);
       if (!updatedOrder) {
-        throw createError('Failed to assign delivery partner', 500);
+        throw createError(ResponseMessages.ASSIGN_PARTNER_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
       logger.info(`Delivery partner assigned to order: ${order.id} -> ${deliveryPartnerId}`);
@@ -246,21 +249,21 @@ export class OrderService implements IOrderService {
     orderId: string,
     newStatus: OrderStatus,
     notes?: string,
-    userId?: string
+    _userId?: string
   ): Promise<IOrder> {
     try {
       const order = await this.orderRepository.findById(orderId);
       if (!order) {
-        throw createError('Order not found', 404);
+        throw createError(ResponseMessages.ORDER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       if (!this.isValidStatusTransition(order.status, newStatus)) {
-        throw createError(`Invalid status transition from ${order.status} to ${newStatus}`, 400);
+        throw createError(`Invalid status transition from ${order.status} to ${newStatus}`, HttpStatus.BAD_REQUEST);
       }
 
       const updatedOrder = await this.orderRepository.updateStatus(orderId, newStatus, notes);
       if (!updatedOrder) {
-        throw createError('Failed to update order status', 500);
+        throw createError(ResponseMessages.ORDER_STATUS_UPDATE_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
       logger.info(`Order status updated: ${order.id} -> ${newStatus}`);
@@ -278,12 +281,12 @@ export class OrderService implements IOrderService {
     try {
       const order = await this.orderRepository.findById(orderId);
       if (!order) {
-        throw createError('Order not found', 404);
+        throw createError(ResponseMessages.ORDER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       const cancelledOrder = await this.orderRepository.cancelOrder(orderId, reason, cancelledBy);
       if (!cancelledOrder) {
-        throw createError('Failed to cancel order', 500);
+        throw createError(ResponseMessages.CANCEL_ORDER_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
       if (order.paymentStatus === PaymentStatus.COMPLETED) {
@@ -308,11 +311,11 @@ export class OrderService implements IOrderService {
     try {
       const order = await this.orderRepository.findById(orderId);
       if (!order || order.deliveryPartnerId?.toString() !== deliveryPartnerId) {
-        throw createError('Order not found or unauthorized', 403);
+        throw createError(ResponseMessages.ORDER_UNAUTHORIZED, HttpStatus.FORBIDDEN);
       }
 
       if (order.status !== OrderStatus.CONFIRMED) {
-        throw createError('Order is not ready for pickup', 400);
+        throw createError(ResponseMessages.ORDER_NOT_READY_PICKUP, HttpStatus.BAD_REQUEST);
       }
 
       const otpVerification = await this.otpRepository.verifyOTP(
@@ -322,7 +325,7 @@ export class OrderService implements IOrderService {
       );
 
       if (!otpVerification.success) {
-        throw createError(otpVerification.message, 400);
+        throw createError(otpVerification.message, HttpStatus.BAD_REQUEST);
       }
 
       const updatedOrder = await this.updateOrderStatus(
@@ -346,11 +349,11 @@ export class OrderService implements IOrderService {
     try {
       const order = await this.orderRepository.findById(orderId);
       if (!order || order.deliveryPartnerId?.toString() !== deliveryPartnerId) {
-        throw createError('Order not found or unauthorized', 403);
+        throw createError(ResponseMessages.ORDER_UNAUTHORIZED, HttpStatus.FORBIDDEN);
       }
 
       if (order.status !== OrderStatus.OUT_FOR_DELIVERY) {
-        throw createError('Order is not out for delivery', 400);
+        throw createError(ResponseMessages.ORDER_NOT_OUT_DELIVERY, HttpStatus.BAD_REQUEST);
       }
 
       const otpVerification = await this.otpRepository.verifyOTP(
@@ -360,7 +363,7 @@ export class OrderService implements IOrderService {
       );
 
       if (!otpVerification.success) {
-        throw createError(otpVerification.message, 400);
+        throw createError(otpVerification.message, HttpStatus.BAD_REQUEST);
       }
 
       const updatedOrder = await this.updateOrderStatus(
@@ -389,12 +392,12 @@ export class OrderService implements IOrderService {
     try {
       const order = await this.orderRepository.findById(orderId);
       if (!order || order.status !== OrderStatus.DELIVERED) {
-        throw createError('Only delivered orders can be rated', 400);
+        throw createError(ResponseMessages.ONLY_DELIVERED_RATED, HttpStatus.BAD_REQUEST);
       }
 
       const ratedOrder = await this.orderRepository.rateOrder(orderId, rating, comment, ratingType);
       if (!ratedOrder) {
-        throw createError('Failed to rate order', 500);
+        throw createError(ResponseMessages.RATE_ORDER_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
       if (ratingType === 'customer' && order.deliveryPartnerId) {

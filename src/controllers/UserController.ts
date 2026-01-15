@@ -35,7 +35,7 @@ export class UserController {
    * Update the current user's profile.
    */
   updateProfile = asyncHandler(
-    async (req: Request<{}, {}, UpdateProfileDto>, res: Response, _next: NextFunction) => {
+    async (req: Request<any, any, UpdateProfileDto>, res: Response, _next: NextFunction) => {
       const userId = req.user!.userId;
       const files = req.files as
         | Express.Multer.File[]
@@ -126,7 +126,7 @@ export class UserController {
    * Add a new address for the user.
    */
   addAddress = asyncHandler(
-    async (req: Request<{}, {}, AddAddressDto>, res: Response, _next: NextFunction) => {
+    async (req: Request<any, any, AddAddressDto>, res: Response, _next: NextFunction) => {
       const userId = req.user!.userId;
       const user = await this.userService.addAddress(userId, req.body);
 
@@ -138,7 +138,7 @@ export class UserController {
    * Update an existing address.
    */
   updateAddress = asyncHandler(
-    async (req: Request<{ id: string }, {}, UpdateAddressDto>, res: Response, _next: NextFunction) => {
+    async (req: Request<{ id: string }, any, UpdateAddressDto>, res: Response, _next: NextFunction) => {
       const userId = req.user!.userId;
       const { id } = req.params;
       const user = await this.userService.updateAddress(
@@ -251,7 +251,7 @@ export class UserController {
    * Update the online status of a delivery partner.
    */
   updateOnlineStatus = asyncHandler(
-    async (req: Request<{}, {}, UpdateOnlineStatusDto>, res: Response, _next: NextFunction) => {
+    async (req: Request<any, any, UpdateOnlineStatusDto>, res: Response, _next: NextFunction) => {
       const userId = req.user!.userId;
       const { isOnline } = req.body;
       const user = await this.userService.updateDeliveryPartnerOnlineStatus(

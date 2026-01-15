@@ -2,65 +2,112 @@ import dotenv from 'dotenv';
 dotenv.config();
 import { AppConfig } from '../types';
 
+const error = (message = "error") => {
+  throw new Error(`Config error: ${message}`);
+};
+
+// Add small helpers to centralize env reading and validation
+const get = (key: string, required = false, fallback?: string): string | undefined => {
+  const v = process.env[key];
+  if ((v === undefined || v === '') && required) error(`${key} not defined`);
+  return (v === undefined || v === '') ? fallback : v;
+};
+
+const getInt = (key: string, required = false, fallback?: number, radix = 10): number => {
+  const raw = get(key, required, fallback !== undefined ? String(fallback) : undefined);
+  if (raw === undefined) error(`${key} is not defined`);
+  const n = parseInt(raw, radix);
+  if (Number.isNaN(n)) error(`${key} is not a valid integer`);
+  return n;
+};
+
+const getBool = (key: string, fallback = false): boolean => {
+  const raw = get(key, false);
+  if (raw === undefined) return fallback;
+  return raw.toLowerCase() === 'true';
+};
 
 const config: AppConfig = {
-  port: parseInt(process.env.PORT || '3000', 10),
-  env: process.env.NODE_ENV || 'development',
-  jwtSecret: process.env.JWT_SECRET || 'your-super-secret-jwt-key',
-  jwtExpiration: process.env.JWT_EXPIRATION || '24h',
-  jwtRefreshExpiration: process.env.JWT_REFRESH_EXPIRATION || '7d',
-  
+  port: getInt('PORT', true),
+  env: get('NODE_ENV', true)!,
+  jwtSecret: get('JWT_SECRET', true)!,
+  jwtExpiration: get('JWT_EXPIRATION', true)!,
+  jwtRefreshExpiration: get('JWT_REFRESH_EXPIRATION', true)!,
+
+  // cookieExpiration as days (int); compute cookieMaxAge (ms) below
+  cookieExpiration: getInt('COOKIE_EXPIRATION', false, 7), // days
+
+  maxSizeLimit: get('MAX_SIZE_LIMIT', false, '1mb')!,
+
   database: {
-    uri: process.env.MONGODB_URI || 'mongodb+srv://user:zGrxrSAsruBZ3zxt@cluster0.iriaonw.mongodb.net/traveldb?retryWrites=true&w=majority',
+    uri: get('MONGODB_URI', true)!,
     options: {
-      maxPoolSize: parseInt(process.env.DB_MAX_POOL_SIZE || '10', 10),
-      serverSelectionTimeoutMS: parseInt(process.env.DB_SERVER_SELECTION_TIMEOUT || '5000', 10),
-      socketTimeoutMS: parseInt(process.env.DB_SOCKET_TIMEOUT || '45000', 10),
-      heartbeatFrequencyMS: parseInt(process.env.DB_HEARTBEAT_FREQUENCY || '10000', 10),
+      maxPoolSize: getInt('DB_MAX_POOL_SIZE', false, 10),
+      serverSelectionTimeoutMS: getInt('DB_SERVER_SELECTION_TIMEOUT', false, 5000),
+      socketTimeoutMS: getInt('DB_SOCKET_TIMEOUT', false, 45000),
+      heartbeatFrequencyMS: getInt('DB_HEARTBEAT_FREQUENCY', false, 10000),
     },
   },
-  
+
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-    credentials: process.env.CORS_CREDENTIALS === 'true',
+    origin: get('CORS_ORIGIN', false, 'http://localhost:5173')!,
+    credentials: getBool('CORS_CREDENTIALS', false),
   },
-  
+
   rateLimit: {
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutes
-    max: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
+    windowMs: getInt('RATE_LIMIT_WINDOW_MS', false, 15 * 60 * 1000), // default 15 minutes
+    max: getInt('RATE_LIMIT_MAX', false, 100),
   },
-  
+
   upload: {
-    maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760'), // 10MB default
+    // ensure radix and fallback
+    maxFileSize: getInt('MAX_FILE_SIZE', false, 10 * 1024 * 1024), // 10MB default
     allowedMimeTypes: [
       'image/jpeg',
-      'image/jpg', 
+      'image/jpg',
       'image/png',
       'application/pdf'
     ]
   },
+
+  // AWS S3 Configuration
+  // not implemented yet
   aws: {
-    region: process.env.AWS_REGION || 'us-east-1',
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-    s3BucketName: process.env.AWS_S3_BUCKET_NAME!,
+    region: get('AWS_REGION', false, 'us-east-1')!,
+    accessKeyId: get('AWS_ACCESS_KEY_ID', false, '')!,
+    secretAccessKey: get('AWS_SECRET_ACCESS_KEY', false, '')!,
+    s3BucketName: get('AWS_S3_BUCKET_NAME', false, '')!,
   },
-  
+
   otp: {
-    expirationMinutes: parseInt(process.env.OTP_EXPIRATION_MINUTES || '10', 10),
-    maxAttempts: parseInt(process.env.OTP_MAX_ATTEMPTS || '3', 10),
+    expirationMinutes: getInt('OTP_EXPIRATION_MINUTES', false, 10),
+    maxAttempts: getInt('OTP_MAX_ATTEMPTS', false, 3),
   },
-  
-email: {
-  service: 'gmail',
-  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.EMAIL_PORT || '587', 10),
-  secure: process.env.EMAIL_SECURE === 'true',
-  auth: {
-    user: process.env.EMAIL_USER || '',
-    pass: process.env.EMAIL_PASS || '',
+
+  email: {
+    service: get('EMAIL_SERVICE', false, 'gmail')!,
+    host: get('EMAIL_HOST', false, 'smtp.gmail.com')!,
+    port: getInt('EMAIL_PORT', false, 587),
+    secure: getBool('EMAIL_SECURE', false),
+    auth: {
+      user: get('EMAIL_USER', false, '')!,
+      pass: get('EMAIL_PASS', false, '')!,
+    },
   },
-},
-};  
+
+  // logs: provide sane defaults; expecting LOG_MAX_SIZE like "20m" and LOG_MAX_FILES like "7d" or a number
+  logs: {
+    level: get('LOG_LEVEL', false, 'info')!,
+    maxSize: get('LOG_MAX_SIZE', false, '20m')!,
+    maxFiles: get('LOG_MAX_FILES', false, '7d')!,
+  },
+};
+
+// compute derived values
+// cookieMaxAge in milliseconds based on cookieExpiration days
+(config as any).cookieMaxAge = (config.cookieExpiration && Number.isFinite(Number(config.cookieExpiration)))
+  ? config.cookieExpiration * 24 * 60 * 60 * 1000
+  : 7 * 24 * 60 * 60 * 1000;
+
 export default config;
 

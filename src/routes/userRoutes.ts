@@ -1,14 +1,15 @@
 import { Router } from 'express';
 import { UserController } from '../controllers/UserController';
-import { validate, validateParams, validateQuery } from '../middleware/validation';
-import { authenticate, authorize } from '../middleware/auth';
-import { pagination } from '../middleware/pagination';
-import { UserRole } from '../types';
+import { validate } from '../middleware/validation';
+import { authenticate } from '../middleware/auth';
+// import { pagination } from '../middleware/pagination';
+// import { UserRole } from '../types';
 import { container } from '../container/container';
 
 
-import { idParamSchema } from '../validators/params';
-import { addAddressSchema, getUsersSchema, updateAddressSchema, updateDeliveryPartnerInfoSchema, updateProfileSchema } from '../validators/user';
+// import { idParamSchema } from '../validators/params';
+import { updateProfileSchema } from '../validators/user';
+// import { addAddressSchema, getUsersSchema, updateAddressSchema, updateDeliveryPartnerInfoSchema } from '../validators/user';
 import { userUpload } from '../middleware/upload';
 
 const router = Router();

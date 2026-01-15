@@ -5,12 +5,14 @@ import { IOTPRepository } from '../interfaces/IRepository/IOTPRepository';
 import { createError } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
 import { generateOTP, hashPassword } from '../utils/helpers';
-import { DocumentStatus, JWTPayload, OTPType, PaginatedResult, PaginationOptions, PartnerRegistrationData, UserRole } from '../types';
+import { JWTPayload, OTPType, PaginatedResult, PaginationOptions, PartnerRegistrationData, UserRole } from '../types';
 import config from '../config';
 import jwt, { Secret, SignOptions } from 'jsonwebtoken';
 import { IPartner } from '../interfaces/IModel/IPartner';
 import { IEmailService } from '../interfaces/IService/IEmailService';
 import { IPartnerService } from '../interfaces/IService/IPartnerService';
+import { HttpStatus } from '../enums/HttpStatus';
+import { ResponseMessages } from '../enums/ResponseMessages';
 
 /**
  * Service for handling partner-related operations.
@@ -27,6 +29,11 @@ export class PartnerService implements IPartnerService {
   /**
    * Register a new partner (concise version).
    */
+  /**
+   * 
+   * @param userData 
+   * @returns 
+   */
   async registerPartner(userData: {
     fullName: string;
     email: string;
@@ -37,7 +44,7 @@ export class PartnerService implements IPartnerService {
     try {
       const existingPartner = await this.partnerRepository.findByEmail(userData.email);
       if (existingPartner) {
-        throw createError('Email already registered', 400);
+        throw createError(ResponseMessages.EMAIL_ALREADY_REGISTERED, HttpStatus.BAD_REQUEST);
       }
       const partnerId = await this.generatePartnerId();
       const hashedPassword = await hashPassword(userData.password);
@@ -69,6 +76,12 @@ export class PartnerService implements IPartnerService {
   /**
    * Register a partner with documents.
    */
+  /**
+   * 
+   * @param registrationData 
+   * @param fileUrls 
+   * @returns 
+   */
   async register(
     registrationData: PartnerRegistrationData,
     fileUrls: { [key: string]: string }
@@ -81,10 +94,10 @@ export class PartnerService implements IPartnerService {
 
       if (existingPartner) {
         if (existingPartner.email === registrationData.email.toLowerCase()) {
-          throw createError('Email already registered', 400);
+          throw createError(ResponseMessages.EMAIL_ALREADY_REGISTERED, HttpStatus.BAD_REQUEST);
         }
         if (existingPartner.phone === registrationData.phone) {
-          throw createError('Mobile number already registered', 400);
+          throw createError(ResponseMessages.MOBILE_ALREADY_REGISTERED, HttpStatus.BAD_REQUEST);
         }
       }
 
@@ -132,15 +145,20 @@ export class PartnerService implements IPartnerService {
   /**
    * Request an OTP for partner login.
    */
+  /**
+   * 
+   * @param email 
+   * @returns 
+   */
   async requestLoginOtp(email: string): Promise<{ message: string }> {
     try {
       const partner = await this.partnerRepository.findByEmail(email);
       if (!partner) {
-        throw createError('Email not found. This email is not registered as a delivery partner.', 404);
+        throw createError(ResponseMessages.PARTNER_EMAIL_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       if (!partner.isActive) {
-        throw createError('Account is deactivated', 401);
+        throw createError(ResponseMessages.ACCOUNT_DEACTIVATED, HttpStatus.UNAUTHORIZED);
       }
 
       const otpCode = generateOTP(6);
@@ -166,6 +184,12 @@ export class PartnerService implements IPartnerService {
   /**
    * Verify login OTP and return tokens.
    */
+  /**
+   * 
+   * @param email 
+   * @param otp 
+   * @returns 
+   */
   async verifyLoginOtp(email: string, otp: string): Promise<{
     user: any;
     accessToken: string;
@@ -174,11 +198,11 @@ export class PartnerService implements IPartnerService {
     try {
       const partner = await this.partnerRepository.findByEmail(email);
       if (!partner) {
-        throw createError('Invalid request', 400);
+        throw createError(ResponseMessages.INVALID_REQUEST, HttpStatus.BAD_REQUEST);
       }
 
       if (!partner.isActive) {
-        throw createError('Account is deactivated', 401);
+        throw createError(ResponseMessages.ACCOUNT_DEACTIVATED, HttpStatus.UNAUTHORIZED);
       }
 
       const otpVerification = await this.otpRepository.verifyOTP(
@@ -188,7 +212,7 @@ export class PartnerService implements IPartnerService {
       );
 
       if (!otpVerification.success) {
-        throw createError(otpVerification.message, 400);
+        throw createError(otpVerification.message, HttpStatus.BAD_REQUEST);
       }
 
       await this.partnerRepository.updateLastLogin(partner._id.toString());
@@ -221,6 +245,11 @@ export class PartnerService implements IPartnerService {
   /**
    * Get modular verification status of sections.
    */
+  /**
+   * 
+   * @param partnerId 
+   * @returns 
+   */
   async getVerificationStatus(partnerId: string): Promise<{
     isVerified: boolean;
     verificationStatus: {
@@ -233,7 +262,7 @@ export class PartnerService implements IPartnerService {
     try {
       const partner = await this.partnerRepository.getDocumentsByPartnerId(partnerId);
       if (!partner) {
-        throw createError('Partner not found', 404);
+        throw createError(ResponseMessages.PARTNER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       const verificationStatus = {
@@ -277,15 +306,20 @@ export class PartnerService implements IPartnerService {
   /**
    * Get partner by ID.
    */
+  /**
+   * 
+   * @param partnerId 
+   * @returns 
+   */
   async getCurrentPartner(partnerId: string): Promise<IPartner> {
     try {
       const partner = await this.partnerRepository.findById(partnerId);
       if (!partner) {
-        throw createError('Partner not found', 404);
+        throw createError(ResponseMessages.PARTNER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       if (!partner.isActive) {
-        throw createError('Account is deactivated', 401);
+        throw createError(ResponseMessages.ACCOUNT_DEACTIVATED, HttpStatus.UNAUTHORIZED);
       }
 
       return partner;
@@ -298,23 +332,57 @@ export class PartnerService implements IPartnerService {
   /**
    * Refresh partner tokens.
    */
+  /**
+   * 
+   * @param refreshToken 
+   * @returns 
+   */
   async refreshToken(refreshToken: string): Promise<{ accessToken: string }> {
     try {
       const decoded = jwt.verify(refreshToken, config.jwtSecret) as JWTPayload;
       const partner = await this.partnerRepository.findById(decoded.userId);
       if (!partner || !partner.isActive) {
-        throw createError('Invalid token', 401);
+        throw createError(ResponseMessages.INVALID_TOKEN, HttpStatus.UNAUTHORIZED);
       }
       const newAccessToken = this.generateAccessToken(partner);
       return { accessToken: newAccessToken };
     } catch (error) {
       logger.error('Partner token refresh failed:', error);
-      throw createError('Invalid token', 401);
+      throw createError(ResponseMessages.INVALID_TOKEN, HttpStatus.UNAUTHORIZED);
+    }
+  }
+
+  /**   * Send a custom email to a partner.
+   * param email - Partner's email address.
+   * param subject - Subject of the email.
+   * param message - Body of the email.
+   */
+  /**
+   * 
+   * @param email 
+   * @param subject 
+   * @param message 
+   */
+  async sendEmailToPartner(email: string, subject: string, message: string): Promise<void> {
+    try {
+      const partner = await this.partnerRepository.findByEmail(email);
+      if (!partner) {
+        throw createError(ResponseMessages.PARTNER_EMAIL_DOES_NOT_EXIST, HttpStatus.NOT_FOUND);
+      }
+      await this.emailService.sendCustomEmail(email, subject, message);
+      logger.info(`Email sent to partner: ${email}`);
+    } catch (error) {
+      logger.error('Failed to send email to partner:', error);
+      throw error;
     }
   }
 
   /**
    * Generate a unique partner identifier.
+   */
+  /**
+   * 
+   * @returns 
    */
   private async generatePartnerId(): Promise<string> {
     const prefix = 'PRT';
@@ -325,6 +393,11 @@ export class PartnerService implements IPartnerService {
 
   /**
    * Generate access token.
+   */
+  /**
+   * 
+   * @param partner 
+   * @returns 
    */
   private generateAccessToken(partner: IPartner): string {
     const payload: JWTPayload = {
@@ -342,6 +415,11 @@ export class PartnerService implements IPartnerService {
   /**
    * Generate refresh token.
    */
+  /**
+   * 
+   * @param partner 
+   * @returns 
+   */
   private generateRefreshToken(partner: IPartner): string {
     const payload: JWTPayload = {
       userId: partner._id.toString(),
@@ -357,6 +435,13 @@ export class PartnerService implements IPartnerService {
 
   /**
    * Update document verification status.
+   */
+  /**
+   * 
+   * @param partnerId 
+   * @param documentType 
+   * @param status 
+   * @param rejectionReason 
    */
   async updateDocumentStatus(
     partnerId: string,
@@ -395,7 +480,7 @@ export class PartnerService implements IPartnerService {
           if (rejectionReason) updateData['bankingDetails.rejectionReason'] = rejectionReason;
           break;
         default:
-          throw createError(`Invalid document type: ${documentType}`, 400);
+          throw createError(`Invalid document type: ${documentType}`, HttpStatus.BAD_REQUEST);
       }
 
       // TODO: Implement the persistence logic in the repository if needed, or use existing generic update.
@@ -410,9 +495,15 @@ export class PartnerService implements IPartnerService {
   /**
    * Get all partners.
    */
+  /**
+   * 
+   * @param pagination 
+   * @param filter 
+   * @returns 
+   */
   async getAllPartners(
     pagination?: PaginationOptions,
-    filter?: {
+    _filter?: {
       isActive?: boolean;
       isVerified?: boolean;
       search?: string;
@@ -431,6 +522,12 @@ export class PartnerService implements IPartnerService {
   /**
    * Update partner activation status.
    */
+  /**
+   * 
+   * @param partnerId 
+   * @param updateData 
+   * @returns 
+   */
   async updatePartnerStatus(
     partnerId: string,
     updateData: Partial<IPartner>
@@ -447,11 +544,16 @@ export class PartnerService implements IPartnerService {
   /**
    * Get detailed verification view.
    */
+  /**
+   * 
+   * @param partnerId 
+   * @returns 
+   */
   async getDetailedVerificationStatus(partnerId: string): Promise<any> {
     try {
       const partner = await this.partnerRepository.getDocumentsByPartnerId(partnerId);
       if (!partner) {
-        throw createError('Partner not found', 404);
+        throw createError(ResponseMessages.PARTNER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       const personalInfoComplete = !!(

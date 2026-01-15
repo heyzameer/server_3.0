@@ -1,22 +1,22 @@
 import { Router } from 'express';
-import { validate, validateQuery } from '../middleware/validation';
+import { validate } from '../middleware/validation';
 import { authLimiter } from '../middleware/rateLimit';
 import { container } from '../container/container';
 
 import { AdminController } from '../controllers/AdminController';
-import { UserController } from '../controllers/UserController';
+// import { UserController } from '../controllers/UserController';
 import { loginSchema } from '../validators/auth';
-import { authenticateAdmin } from '../middleware/authenticateAdmin';
+// import { authenticateAdmin } from '../middleware/authenticateAdmin';
 import { authenticate, authorize } from '../middleware/auth';
 import { UserRole } from '../types';
-import { pagination } from '../middleware/pagination';
-import { getUsersSchema } from '../validators/user';
+// import { pagination } from '../middleware/pagination';
+// import { getUsersSchema } from '../validators/user';
 
 const router = Router();
 const adminController = container.resolve(AdminController);
-const userController = container.resolve(UserController);
-import { validateParams } from '../middleware/validation';
-import { idParamSchema } from '../validators/params';
+// const userController = container.resolve(UserController);
+// import { validateParams } from '../middleware/validation';
+// import { idParamSchema } from '../validators/params';
 // Public routes
 router.post('/login', authLimiter, validate(loginSchema), adminController.adminLogin);
 
@@ -30,6 +30,7 @@ router.put('/users/:id', adminController.updateUserStatus);
 router.get('/partners', adminController.getAllPartners);
 router.get('/partners/:id', adminController.getPartnerDetails);
 router.put('/partners/:id', adminController.updatePartnerStatus);
+router.post('/partners/send-email', adminController.sendPartnerEmail);
 
 // router.get('/partners/requests',adminController.getAllPartnersRequest);
 // router.get('/', authorize([UserRole.ADMIN]), pagination, validateQuery(getUsersSchema), userController.getAllUsers);

@@ -1,7 +1,6 @@
-// src/locations/models/Location.ts
 import { ILocation } from '../interfaces/IModel/ILocation';
-import { LocationCoordinates } from '../types';
-import mongoose, { Schema, Document, Model } from 'mongoose';
+// import { LocationCoordinates } from '../types';
+import mongoose, { Schema, Model } from 'mongoose';
 
 
 
@@ -130,9 +129,9 @@ locationSchema.methods.distanceFrom = function (
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRad(this.coordinates.latitude)) *
-      Math.cos(toRad(latitude)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos(toRad(latitude)) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };

@@ -21,9 +21,9 @@ const addressSchema = new Schema<IAddress>(
     buildingNumber: { type: String, maxlength: 50 },
     floorNumber: { type: String, maxlength: 50 },
     contactName: { type: String, required: true, maxlength: 100 },
-    contactPhone: { type: String, required: true, match: /^[\+]?[1-9][\d]{0,15}$/ },
+    contactPhone: { type: String, required: true, match: /^[+]?[1-9][\d]{0,15}$/ },
     latitude: { type: Number, },
-    longitude: { type: Number,  },
+    longitude: { type: Number, },
     type: {
       type: String,
       enum: ['home', 'work', 'other'],

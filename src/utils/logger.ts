@@ -18,8 +18,8 @@ const fileRotateTransport = new DailyRotateFile({
   filename: 'logs/app-%DATE%.log',
   datePattern: 'YYYY-MM-DD',
   zippedArchive: true,        // compress old logs
-  maxSize: '20m',             // rotate if >20MB
-  maxFiles: '7d',             // 👈 RETENTION: keep logs for 7 days
+  maxSize: config.logs?.maxSize || '20m',             // rotate if > config size
+  maxFiles: config.logs?.maxFiles || '7d',            // retention
   level: 'info',
 });
 
@@ -27,13 +27,13 @@ const errorRotateTransport = new DailyRotateFile({
   filename: 'logs/error-%DATE%.log',
   datePattern: 'YYYY-MM-DD',
   zippedArchive: true,
-  maxSize: '10m',
-  maxFiles: '14d',            // keep error logs for 14 days
+  maxSize: config.logs?.maxSize || '10m',
+  maxFiles: config.logs?.maxFiles || '14d',
   level: 'error',
 });
 
 export const logger = winston.createLogger({
-  level: config.env === 'production' ? 'info' : 'debug',
+  level: config.logs?.level || 'info',
   format: winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     winston.format.errors({ stack: true }),

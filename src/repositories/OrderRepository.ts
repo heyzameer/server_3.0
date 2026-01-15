@@ -1,4 +1,4 @@
-import { FilterQuery } from 'mongoose';
+// import { FilterQuery } from 'mongoose';
 import { BaseRepository } from './BaseRepository';
 import { OrderStatus, PaginationOptions, PaginatedResult } from '../types';
 import { IOrderRepository } from '../interfaces/IRepository/IOrderRepository';
