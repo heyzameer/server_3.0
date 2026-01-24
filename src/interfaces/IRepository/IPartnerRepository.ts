@@ -1,5 +1,6 @@
 // import { PartnerDocumentType } from "../../types";
-import { IPartner } from "../IModel/IPartner";
+import { IPartner } from '../IModel/IPartner';
+import { PaginatedResult, PaginationOptions } from '../../types';
 
 export interface IPartnerRepository {
   create(partnerData: Partial<IPartner>): Promise<IPartner>;
@@ -12,6 +13,7 @@ export interface IPartnerRepository {
   addDocument(partnerId: string, document: any): Promise<IPartner | null>;
   updateDocumentStatus(partnerId: string, documentType: string, status: string, rejectionReason?: string): Promise<IPartner | null>;
   updateVerificationStatus(partnerId: string, isVerified: boolean): Promise<IPartner | null>;
+  findByAadharStatus(status: string, pagination: PaginationOptions): Promise<PaginatedResult<IPartner>>;
   searchPartners(searchTerm: string, pagination: any): Promise<any>;
   findVerifiedPartners(pagination?: any): Promise<any>;
   findUnverifiedPartners(pagination: any): Promise<any>;
@@ -20,4 +22,5 @@ export interface IPartnerRepository {
   findByMobileNumber(phone: string): Promise<IPartner | null>;
   getDocumentsByPartnerId(partnerId: string): Promise<IPartner | null>;
   updatePartnerStatus(partnerId: string, updateData: Partial<IPartner>): Promise<IPartner | null>;
+  findAll(filter: any, pagination: PaginationOptions): Promise<PaginatedResult<IPartner>>;
 }

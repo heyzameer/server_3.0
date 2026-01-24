@@ -57,8 +57,8 @@ export enum OrderStatus {
   CONFIRMED = 'confirmed',
   PICKED_UP = 'picked_up',
   IN_TRANSIT = 'in_transit',
-  OUT_FOR_DELIVERY = 'out_for_delivery',
-  DELIVERED = 'delivered',
+  OUT_FOR_SERVICE = 'out_for_service',
+  COMPLETED = 'completed',
   CANCELLED = 'cancelled',
   RETURNED = 'returned'
 }
@@ -77,16 +77,16 @@ export enum PaymentMethod {
   UPI = 'upi'
 }
 
-export enum DeliveryType {
+export enum BookingType {
   STANDARD = 'standard',
-  EXPRESS = 'express',
-  SAME_DAY = 'same_day',
-  SCHEDULED = 'scheduled'
+  PREMIUM = 'premium',
+  LUXURY = 'luxury',
+  VIP = 'vip'
 }
 
 export enum OTPType {
-  PICKUP = 'pickup',
-  DELIVERY = 'delivery',
+  CHECKIN = 'checkin',
+  COMPLETION = 'completion',
   PHONE_VERIFICATION = 'phone_verification',
   EMAIL_VERIFICATION = 'email_verification'
 }
@@ -118,13 +118,13 @@ export interface Pricing {
   basePrice: number;
   distanceCharge: number;
   weightCharge: number;
-  deliveryCharge: number;
+  serviceCharge: number;
   taxAmount: number;
   discount?: number;
   totalAmount: number;
 }
 
-export interface DeliveryPartnerLocation {
+export interface PartnerLocation {
   userId: string;
   coordinates: LocationCoordinates;
   heading?: number;
@@ -206,6 +206,12 @@ export interface AppConfig {
     maxSize: string;
     maxFiles: string;
   };
+  encryptionSecret: string;
+  gemini: {
+    apiKey: string;
+  };
+  useGeminiOCR: boolean;
+  signedUrlExpiration: number;
 }
 
 export interface CustomError extends Error {
@@ -231,12 +237,6 @@ declare global {
 export enum PartnerDocumentType {
   AADHAR_FRONT = 'aadhar_front',
   AADHAR_BACK = 'aadhar_back',
-  PAN_FRONT = 'pan_front',
-  PAN_BACK = 'pan_back',
-  LICENSE_FRONT = 'license_front',
-  LICENSE_BACK = 'license_back',
-  INSURANCE = 'insurance',
-  POLLUTION = 'pollution',
   PROFILE_PICTURE = 'profile_picture'
 }
 
@@ -244,17 +244,16 @@ export interface PartnerRegistrationData {
   fullName: string;
   email: string;
   phone: string;
-  dateOfBirth: string;
-  vehicalDocuments: {
-    vehicleType: string;
-    registrationNumber: string;
-  }
-  bankingDetails: {
-    accountHolderName: string;
-    accountNumber: string;
-    ifscCode: string;
-    upiId?: string;
-  }
+  password: string;
+  dateOfBirth?: string;
+}
+
+export interface BasicPartnerRegistrationData {
+  fullName: string;
+  email: string;
+  phone: string;
+  password: string;
+  role?: string;
 }
 
 export enum DocumentStatus {

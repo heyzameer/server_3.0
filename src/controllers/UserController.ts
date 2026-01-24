@@ -10,6 +10,8 @@ import {
   UpdateAddressDto,
   UpdateOnlineStatusDto
 } from "../dtos/user.dto";
+import { ResponseMessages } from "../enums/ResponseMessages";
+import { HttpStatus } from "../enums/HttpStatus";
 
 /**
  * Controller for user-related operations.
@@ -27,7 +29,7 @@ export class UserController {
       const userId = req.user!.userId;
       const user = await this.userService.getUserProfile(userId);
 
-      sendSuccess(res, "Profile retrieved successfully", { user });
+      sendSuccess(res, ResponseMessages.PROFILE_RETRIEVED, { user });
     }
   );
 
@@ -59,7 +61,7 @@ export class UserController {
 
       const user = await this.userService.updateProfile(userId, updateData);
 
-      sendSuccess(res, "Profile updated successfully", { user });
+      sendSuccess(res, ResponseMessages.PROFILE_UPDATED, { user });
     }
   );
 
@@ -82,7 +84,7 @@ export class UserController {
 
       const result = await this.userService.getAllUsers(pagination, filters);
 
-      sendSuccess(res, "Users retrieved successfully", result);
+      sendSuccess(res, ResponseMessages.USERS_RETRIEVED, result);
     }
   );
 
@@ -94,7 +96,7 @@ export class UserController {
       const { id } = req.params;
       const user = await this.userService.getUserById(id);
 
-      sendSuccess(res, "User retrieved successfully", { user });
+      sendSuccess(res, ResponseMessages.USER_RETRIEVED, { user });
     }
   );
 
@@ -106,7 +108,7 @@ export class UserController {
       const { id } = req.params;
       const user = await this.userService.deactivateUser(id);
 
-      sendSuccess(res, "User deactivated successfully", { user });
+      sendSuccess(res, ResponseMessages.USER_DEACTIVATED, { user });
     }
   );
 
@@ -118,7 +120,7 @@ export class UserController {
       const { id } = req.params;
       const user = await this.userService.activateUser(id);
 
-      sendSuccess(res, "User activated successfully", { user });
+      sendSuccess(res, ResponseMessages.USER_ACTIVATED, { user });
     }
   );
 
@@ -130,7 +132,7 @@ export class UserController {
       const userId = req.user!.userId;
       const user = await this.userService.addAddress(userId, req.body);
 
-      sendSuccess(res, "Address added successfully", { user });
+      sendSuccess(res, ResponseMessages.ADDRESS_ADDED, { user }, HttpStatus.CREATED);
     }
   );
 
@@ -147,7 +149,7 @@ export class UserController {
         req.body
       );
 
-      sendSuccess(res, "Address updated successfully", { user });
+      sendSuccess(res, ResponseMessages.ADDRESS_UPDATED, { user });
     }
   );
 
@@ -160,7 +162,7 @@ export class UserController {
       const { id } = req.params;
       const isDeleted = await this.userService.removeAddress(userId, id);
 
-      sendSuccess(res, "Address removed successfully", { isDeleted });
+      sendSuccess(res, ResponseMessages.ADDRESS_REMOVED, { isDeleted });
     }
   );
 
@@ -173,7 +175,7 @@ export class UserController {
       const { id } = req.params;
       const user = await this.userService.setDefaultAddress(userId, id);
 
-      sendSuccess(res, "Default address set successfully", { user });
+      sendSuccess(res, ResponseMessages.ADDRESS_SET_DEFAULT, { user });
     }
   );
 
@@ -185,7 +187,7 @@ export class UserController {
       const userId = req.user!.userId;
       const addresses = await this.userService.getUserAddresses(userId);
 
-      sendSuccess(res, "Addresses retrieved successfully", { addresses });
+      sendSuccess(res, ResponseMessages.ADDRESSES_RETRIEVED, { addresses });
     }
   );
 
@@ -201,14 +203,14 @@ export class UserController {
         id
       );
 
-      sendSuccess(res, "Address retrieved successfully", { address });
+      sendSuccess(res, ResponseMessages.ADDRESS_RETRIEVED, { address });
     }
   );
 
   /**
-   * Get delivery partners with filtering.
+   * Get partners with filtering.
    */
-  getDeliveryPartners = asyncHandler(
+  getPartners = asyncHandler(
     async (req: Request, res: Response, _next: NextFunction) => {
       const pagination = req.pagination!;
       const filters = {
@@ -223,73 +225,73 @@ export class UserController {
           : undefined,
       };
 
-      const result = await this.userService.getDeliveryPartners(
+      const result = await this.userService.getPartners(
         pagination,
         filters
       );
 
-      sendSuccess(res, "Delivery partners retrieved successfully", result);
+      sendSuccess(res, ResponseMessages.PARTNERS_RETRIEVED, result);
     }
   );
 
   /**
-   * Update delivery partner information.
+   * Update partner information.
    */
-  updateDeliveryPartnerInfo = asyncHandler(
+  updatePartnerInfo = asyncHandler(
     async (req: Request, res: Response, _next: NextFunction) => {
       const userId = req.user!.userId;
-      const user = await this.userService.updateDeliveryPartnerInfo(
+      const user = await this.userService.updatePartnerInfo(
         userId,
         req.body
       );
 
-      sendSuccess(res, "Delivery partner info updated successfully", { user });
+      sendSuccess(res, ResponseMessages.PARTNER_UPDATED, { user });
     }
   );
 
   /**
-   * Update the online status of a delivery partner.
+   * Update the online status of a partner.
    */
   updateOnlineStatus = asyncHandler(
     async (req: Request<any, any, UpdateOnlineStatusDto>, res: Response, _next: NextFunction) => {
       const userId = req.user!.userId;
       const { isOnline } = req.body;
-      const user = await this.userService.updateDeliveryPartnerOnlineStatus(
+      const user = await this.userService.updatePartnerOnlineStatus(
         userId,
         isOnline
       );
 
-      sendSuccess(res, "Online status updated successfully", { user });
+      sendSuccess(res, ResponseMessages.ONLINE_STATUS_UPDATED, { user });
     }
   );
 
   /**
-   * Find nearby delivery partners.
+   * Find nearby partners.
    */
-  findNearbyDeliveryPartners = asyncHandler(
+  findNearbyPartners = asyncHandler(
     async (req: Request, res: Response, _next: NextFunction) => {
       const { latitude, longitude, radius } = req.query;
 
-      const deliveryPartners =
-        await this.userService.findNearbyDeliveryPartners(
+      const partners =
+        await this.userService.findNearbyPartners(
           parseFloat(latitude as string),
           parseFloat(longitude as string),
           radius ? parseFloat(radius as string) : 10
         );
 
-      sendSuccess(res, "Nearby delivery partners found", { deliveryPartners });
+      sendSuccess(res, ResponseMessages.NEARBY_PARTNERS_FOUND, { partners });
     }
   );
 
   /**
-   * Verify delivery partner documents.
+   * Verify partner documents.
    */
-  verifyDeliveryPartnerDocuments = asyncHandler(
+  verifyPartnerDocuments = asyncHandler(
     async (req: Request, res: Response, _next: NextFunction) => {
       const { id } = req.params;
-      const user = await this.userService.verifyDeliveryPartnerDocuments(id);
+      const user = await this.userService.verifyPartnerDocuments(id);
 
-      sendSuccess(res, "Documents verified successfully", { user });
+      sendSuccess(res, ResponseMessages.DOCUMENTS_VERIFIED, { user });
     }
   );
 
@@ -302,7 +304,7 @@ export class UserController {
       const pagination = req.pagination!;
 
       if (!search) {
-        return sendError(res, "Search term is required", 400);
+        return sendError(res, ResponseMessages.SEARCH_TERM_REQUIRED, HttpStatus.BAD_REQUEST);
       }
 
       const result = await this.userService.searchUsers(
@@ -310,7 +312,7 @@ export class UserController {
         pagination
       );
 
-      sendSuccess(res, "Users found", result);
+      sendSuccess(res, ResponseMessages.USERS_RETRIEVED, result);
     }
   );
 
@@ -321,7 +323,7 @@ export class UserController {
     async (req: Request, res: Response, _next: NextFunction) => {
       const stats = await this.userService.getUserStats();
 
-      sendSuccess(res, "User statistics retrieved successfully", { stats });
+      sendSuccess(res, ResponseMessages.USER_STATS_RETRIEVED, { stats });
     }
   );
 }

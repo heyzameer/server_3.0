@@ -52,7 +52,7 @@ export class LocationRepository extends BaseRepository<ILocation> implements ILo
     return this.find(filter, { sort: { createdAt: -1 } });
   }
 
-  async findNearbyDeliveryPartners(
+  async findNearbyPartners(
     latitude: number,
     longitude: number,
     radiusKm: number = 10
@@ -83,10 +83,10 @@ export class LocationRepository extends BaseRepository<ILocation> implements ILo
       },
       {
         $match: {
-          'user.role': 'delivery_partner',
+          'user.role': 'partner',
           'user.isActive': true,
-          'user.deliveryPartnerInfo.isOnline': true,
-          'user.deliveryPartnerInfo.documentsVerified': true,
+          'user.partnerInfo.isOnline': true,
+          'user.partnerInfo.documentsVerified': true,
         },
       },
       {
@@ -107,11 +107,11 @@ export class LocationRepository extends BaseRepository<ILocation> implements ILo
     return this.find({ orderId }, { sort: { createdAt: 1 } });
   }
 
-  async updateDeliveryPartnerStatus(userId: string, isOnline: boolean): Promise<void> {
+  async updatePartnerStatus(userId: string, isOnline: boolean): Promise<void> {
     await this.updateMany({ userId }, { isOnline });
   }
 
-  async getActiveDeliveryPartners(): Promise<ILocation[]> {
+  async getActivePartners(): Promise<ILocation[]> {
     return this.aggregate([
       {
         $match: {
@@ -138,9 +138,9 @@ export class LocationRepository extends BaseRepository<ILocation> implements ILo
       },
       {
         $match: {
-          'user.role': 'delivery_partner',
+          'user.role': 'partner',
           'user.isActive': true,
-          'user.deliveryPartnerInfo.isOnline': true,
+          'user.partnerInfo.isOnline': true,
         },
       },
       {
@@ -151,7 +151,7 @@ export class LocationRepository extends BaseRepository<ILocation> implements ILo
     ]);
   }
 
-  async getDeliveryPartnerMovementStats(
+  async getPartnerMovementStats(
     userId: string,
     startDate: Date,
     endDate: Date
@@ -371,13 +371,13 @@ export class LocationRepository extends BaseRepository<ILocation> implements ILo
     ]);
   }
 
-  async getRouteOptimizationData(
-    deliveryPartnerIds: string[]
+  async getPartnerOptimizationData(
+    partnerIds: string[]
   ): Promise<any[]> {
     return this.aggregate([
       {
         $match: {
-          userId: { $in: deliveryPartnerIds.map(id => new mongoose.Types.ObjectId(id)) },
+          userId: { $in: partnerIds.map(id => new mongoose.Types.ObjectId(id)) },
           isOnline: true,
           createdAt: { $gte: new Date(Date.now() - 60 * 60 * 1000) } // Last hour
         }
@@ -400,9 +400,9 @@ export class LocationRepository extends BaseRepository<ILocation> implements ILo
       },
       {
         $match: {
-          'user.role': 'delivery_partner',
+          'user.role': 'partner',
           'user.isActive': true,
-          'user.deliveryPartnerInfo.isOnline': true
+          'user.partnerInfo.isOnline': true
         }
       },
       {
@@ -411,8 +411,8 @@ export class LocationRepository extends BaseRepository<ILocation> implements ILo
           location: '$latestLocation.coordinates',
           averageSpeed: { $round: ['$averageSpeed', 2] },
           batteryLevel: 1,
-          rating: { $arrayElemAt: ['$user.deliveryPartnerInfo.rating', 0] },
-          totalDeliveries: { $arrayElemAt: ['$user.deliveryPartnerInfo.totalDeliveries', 0] }
+          rating: { $arrayElemAt: ['$user.partnerInfo.rating', 0] },
+          totalBookings: { $arrayElemAt: ['$user.partnerInfo.totalBookings', 0] }
         }
       }
     ]);

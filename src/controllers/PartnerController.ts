@@ -3,18 +3,19 @@ import { injectable, inject } from 'tsyringe';
 import { Request, Response, NextFunction } from 'express';
 import { asyncHandler } from '../utils/errorHandler';
 import { sendError, sendSuccess } from '../utils/response';
-import { getS3FileUrl, processPartnerFiles } from '../middleware/upload';
+import { getS3FileUrl } from '../middleware/upload';
 import { IPartnerService } from '../interfaces/IService/IPartnerService';
 import {
   RegisterPartnerReqDto,
-  PartnerFullRegistrationDto,
   PartnerLoginOtpDto,
   PartnerVerifyOtpDto
 } from '../dtos/partner.dto';
 
-import { PartnerService } from '../services/PartnerService';
-import { UserRole } from '../types';
+import { BasicPartnerRegistrationData } from '../types';
 import config from '../config';
+import { logger } from '../utils/logger';
+import { ResponseMessages } from '../enums/ResponseMessages';
+import { HttpStatus } from '../enums/HttpStatus';
 
 /**
  * Controller for partner operations.
@@ -26,57 +27,121 @@ export class PartnerController {
     @inject('PartnerService') private partnerService: IPartnerService
   ) { }
 
-  /**
-   * Quick registration for a partner (basic details).
-   */
-  registerPartner = asyncHandler(async (req: Request<any, any, RegisterPartnerReqDto>, res: Response, _next: NextFunction) => {
-    const { user, accessToken, refreshToken } = await (this.partnerService as PartnerService).registerPartner({
-      fullName: req.body.fullName,
-      email: req.body.email,
-      phone: req.body.phone,
-      password: req.body.password,
-      role: (req.body.role as UserRole) || UserRole.PARTNER
-    });
 
+
+  /**
+   * Register a partner (TravelHub Property Owner) with basic info.
+   */
+  registerPartner = asyncHandler(async (req: Request<any, any, BasicPartnerRegistrationData>, res: Response, _next: NextFunction) => {
+    const { partner, message, accessToken, refreshToken } = await this.partnerService.registerPartner(req.body);
+
+    // Set refresh token cookie
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
-      maxAge: config.cookieExpiration ? parseInt(config.cookieExpiration.toString()) * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000, // Default to 7 days
+      maxAge: config.cookieExpiration ? parseInt(config.cookieExpiration.toString()) * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000,
     });
-
-    sendSuccess(res, 'Partner registered successfully', {
-      user,
-      accessToken,
-      refreshToken
-    }, 201);
-  });
-
-  /**
-   * Full registration for a partner (includes documents).
-   */
-  register = asyncHandler(async (req: Request<any, any, PartnerFullRegistrationDto>, res: Response, _next: NextFunction) => {
-    const uploadedFiles = processPartnerFiles(req.files as { [fieldname: string]: Express.Multer.File[] });
-
-    const fileUrls: { [key: string]: string } = {};
-    uploadedFiles.forEach(file => {
-      fileUrls[file.fieldname] = (file as any).location || getS3FileUrl((file as any).key);
-    });
-
-    const { partner, message, accessToken, refreshToken } = await this.partnerService.register(req.body, fileUrls);
 
     sendSuccess(res, message, {
       user: {
         id: partner._id.toString(),
         email: partner.email,
         fullName: partner.fullName,
+        partnerId: partner.partnerId,
         role: 'partner',
-        isVerified: partner.isVerified
+        isVerified: partner.isVerified,
+        aadhaarVerified: partner.aadhaarVerified,
+        profilePicture: partner.profilePicture
       },
-      message,
       accessToken,
       refreshToken
-    }, 201);
+    }, HttpStatus.CREATED);
+  });
+
+  /**
+   * Handle Aadhaar verification (upload Aadhaar images).
+   * Protected route - uses partnerId from auth token.
+   */
+  register = asyncHandler(async (req: Request<any, any, any>, res: Response, _next: NextFunction) => {
+    // Get partnerId from auth middleware
+    if (!req.partner?.partnerId) {
+      return sendError(res, ResponseMessages.AUTH_TOKEN_REQUIRED, HttpStatus.UNAUTHORIZED);
+    }
+
+    const partnerId = req.partner.partnerId;
+
+    // Block submissions for deactivated partners
+    if (!(req.partner as any).isActive) {
+      return sendError(res, ResponseMessages.ACCOUNT_DEACTIVATED, HttpStatus.FORBIDDEN);
+    }
+
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | Express.Multer.File[];
+
+    const fileUrls: { [key: string]: string } = {};
+
+    // Extract file URLs from Multer S3 upload
+    if (files) {
+      if (Array.isArray(files)) {
+        files.forEach(file => {
+          fileUrls[file.fieldname] = (file as any).location || getS3FileUrl((file as any).key);
+        });
+      } else {
+        Object.keys(files).forEach(fieldname => {
+          const fileArray = files[fieldname];
+          if (fileArray && fileArray.length > 0) {
+            const file = fileArray[0];
+            fileUrls[file.fieldname] = (file as any).location || getS3FileUrl((file as any).key);
+          }
+        });
+      }
+    }
+
+    // Log S3 upload results
+    logger.info(`📤 S3 Upload Results for partner ${partnerId}:`);
+    logger.info(`  - profilePicture: ${fileUrls.profilePicture ? '✅' : '❌'}`);
+    logger.info(`  - aadharFront: ${fileUrls.aadharFront ? '✅' : '❌'}`);
+    logger.info(`  - aadharBack: ${fileUrls.aadharBack ? '✅' : '❌'}`);
+
+    // Validate S3 upload succeeded
+    if (Object.keys(fileUrls).length === 0) {
+      logger.error('❌ S3 upload failed - no files uploaded');
+      return sendError(res, ResponseMessages.FILE_UPLOAD_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    const { dateOfBirth } = req.body;
+
+    try {
+      const { partner, message, accessToken, refreshToken } = await this.partnerService.verifyAadhar(
+        partnerId,
+        fileUrls,
+        dateOfBirth
+      );
+
+      const processedPartner = await this.partnerService.injectSignedUrls(partner);
+      const finalPartner = this.partnerService.injectDecryptedDetails(processedPartner);
+
+      // Set refresh token cookie
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
+        maxAge: config.cookieExpiration ? parseInt(config.cookieExpiration.toString()) * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000,
+      });
+
+      sendSuccess(res, message, {
+        user: {
+          ...finalPartner,
+          id: finalPartner._id.toString(),
+          role: 'partner',
+        },
+        accessToken,
+        refreshToken
+      }, HttpStatus.OK);
+    } catch (error: any) {
+      logger.error('❌ Aadhaar verification failed:', error);
+      return sendError(res, error.message || ResponseMessages.DOCUMENTS_VERIFY_FAILED, error.statusCode || HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   });
 
   /**
@@ -86,7 +151,7 @@ export class PartnerController {
     const { email } = req.body;
     const result = await this.partnerService.requestLoginOtp(email);
 
-    sendSuccess(res, result.message, result);
+    sendSuccess(res, ResponseMessages.OTP_SENT, result);
   });
 
   /**
@@ -103,7 +168,7 @@ export class PartnerController {
       maxAge: config.cookieExpiration ? parseInt(config.cookieExpiration.toString()) * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000, // Default to 7 days
     });
 
-    sendSuccess(res, 'Login successful', {
+    sendSuccess(res, ResponseMessages.LOGIN_SUCCESS, {
       user,
       accessToken,
       refreshToken
@@ -113,11 +178,21 @@ export class PartnerController {
   /**
    * Get the current partner's profile.
    */
+  /**
+   * Get the current partner's profile.
+   */
   getProfile = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
-    const partnerId = req.user!.userId;
+    const partnerId = req.partner?.partnerId || req.user?.userId;
+    if (!partnerId) {
+      return sendError(res, ResponseMessages.AUTH_TOKEN_REQUIRED, HttpStatus.UNAUTHORIZED);
+    }
+
     const partner = await this.partnerService.getCurrentPartner(partnerId);
 
-    sendSuccess(res, 'Profile retrieved successfully', { partner });
+    const processedPartner = await this.partnerService.injectSignedUrls(partner);
+    const finalPartner = this.partnerService.injectDecryptedDetails(processedPartner);
+
+    sendSuccess(res, ResponseMessages.PROFILE_RETRIEVED, finalPartner);
   });
 
   /**
@@ -127,7 +202,7 @@ export class PartnerController {
     const partnerId = req.user!.userId;
     const status = await this.partnerService.getVerificationStatus(partnerId);
 
-    sendSuccess(res, 'Verification status retrieved successfully', status);
+    sendSuccess(res, ResponseMessages.GENERIC_SUCCESS, status);
   });
 
   /**
@@ -136,12 +211,12 @@ export class PartnerController {
   refreshToken = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
     const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) {
-      return sendError(res, 'Refresh token required', 400);
+      return sendError(res, ResponseMessages.INVALID_TOKEN, HttpStatus.BAD_REQUEST);
     }
 
     const { accessToken: newAccessToken } = await this.partnerService.refreshToken(refreshToken);
 
-    sendSuccess(res, 'Token refreshed successfully', { accessToken: newAccessToken });
+    sendSuccess(res, ResponseMessages.TOKEN_REFRESHED, { accessToken: newAccessToken });
   });
 
   /**
@@ -155,6 +230,40 @@ export class PartnerController {
       path: '/',
     });
 
-    sendSuccess(res, 'Logout successful');
+    sendSuccess(res, ResponseMessages.LOGOUT_SUCCESS);
+  });
+
+  /**
+   * Get signed URL for profile picture
+   * GET /api/v1/partner/profile-picture
+   */
+  getProfilePicture = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    if (!req.partner?.partnerId) {
+      return sendError(res, ResponseMessages.AUTH_TOKEN_REQUIRED, HttpStatus.UNAUTHORIZED);
+    }
+
+    const signedUrl = await this.partnerService.getProfilePictureUrl(req.partner.partnerId);
+
+    sendSuccess(res, ResponseMessages.GENERIC_SUCCESS, {
+      url: signedUrl,
+      expiresIn: config.signedUrlExpiration
+    });
+  });
+
+  /**
+   * Get signed URLs for Aadhaar documents
+   * GET /api/v1/partner/aadhaar-documents
+   */
+  getAadhaarDocuments = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    if (!req.partner?.partnerId) {
+      return sendError(res, ResponseMessages.AUTH_TOKEN_REQUIRED, HttpStatus.UNAUTHORIZED);
+    }
+
+    const urls = await this.partnerService.getAadhaarDocumentUrls(req.partner.partnerId);
+
+    sendSuccess(res, ResponseMessages.GENERIC_SUCCESS, {
+      ...urls,
+      expiresIn: config.signedUrlExpiration
+    });
   });
 }

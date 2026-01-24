@@ -12,7 +12,7 @@ export const updateLocationSchema = Joi.object({
   orderId: objectIdSchema,
 });
 
-export const getNearbyDeliveryPartnersSchema = Joi.object({
+export const getNearbyPartnersSchema = Joi.object({
   latitude: Joi.number().min(-90).max(90).required(),
   longitude: Joi.number().min(-180).max(180).required(),
   radius: Joi.number().min(1).max(50).default(10),

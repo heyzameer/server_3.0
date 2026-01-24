@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { Request, Response } from 'express';
 import authRoutes from './authRoutes';
+import propertyRoutes from './propertyRoutes';
 import PartnerRoutes from './partnerRoutes';
 import userRoutes from '../routes/userRoutes';
 import adminRoutes from './adminRoutes';
@@ -23,8 +24,8 @@ router.get('/version', (req: Request, res: Response) => {
   sendSuccess(res, 'API version information', {
     version: '1.0.0',
     apiVersion: 'v1',
-    name: 'Logistics Platform API',
-    description: 'Complete logistics and delivery platform API',
+    name: 'Property Management Platform API',
+    description: 'Complete property management and booking platform API',
   });
 });
 
@@ -32,7 +33,8 @@ router.get('/version', (req: Request, res: Response) => {
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/partner', PartnerRoutes);
-router.use('/admin', adminRoutes); 
+router.use('/properties', propertyRoutes);
+router.use('/admin', adminRoutes);
 
 // 404 handler for API routes
 router.use('*', (req: Request, res: Response) => {

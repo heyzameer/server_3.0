@@ -2,8 +2,8 @@
 import { OrderStatus } from "../types";
 
 export interface CreateOrderDto {
-    pickupAddress: string;
-    deliveryAddress: string;
+    checkInAddress: string;
+    checkOutAddress: string;
     items: any[];
     [key: string]: any;
 }
@@ -29,5 +29,5 @@ export interface RateOrderDto {
 
 export interface AssignPartnerDto {
     orderId: string;
-    deliveryPartnerId: string;
+    partnerId: string;
 }

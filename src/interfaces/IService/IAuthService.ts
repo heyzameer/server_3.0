@@ -15,6 +15,7 @@ export interface IAuthService {
   validateToken(token: string): Promise<JWTPayload>;
   getUserFromToken(token: string): Promise<IUser>;
   generateVerificationOTPs(userId: string, type: OTPType): Promise<void>;
+  updateProfile(userId: string, updateData: any): Promise<IUser>; // New method
   generateAccessToken(user: IUser): string;
   generateRefreshToken(user: IUser): string;
 }

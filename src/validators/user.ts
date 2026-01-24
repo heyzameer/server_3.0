@@ -39,7 +39,7 @@ export const deleteAddressSchema = Joi.object({
   addressId: objectIdSchema,
 });
 
-export const updateDeliveryPartnerInfoSchema = Joi.object({
+export const updatePartnerInfoSchema = Joi.object({
   vehicleType: Joi.string(),
   vehicleNumber: Joi.string(),
   licenseNumber: Joi.string(),

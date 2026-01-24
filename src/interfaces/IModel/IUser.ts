@@ -1,6 +1,19 @@
 import { UserRole } from "../../types";
 import { Document, Model, Types } from "mongoose";
 
+export interface IPartnerInfo {
+  isOnline: boolean;
+  lastLocationUpdate?: Date;
+  lastOnlineStatusUpdate?: Date;
+  rating: number;
+  totalBookings: number;
+  documentsVerified: boolean;
+  vehicleType?: string;
+  vehicleNumber?: string;
+  licenseNumber?: string;
+  licenseExpiry?: Date;
+}
+
 export interface IUser extends Document {
   fullName: string;
   email: string;
@@ -21,11 +34,11 @@ export interface IUser extends Document {
   ratingId?: Types.ObjectId;
   walletId?: Types.ObjectId;
 
-
+  partnerInfo?: IPartnerInfo;
 }
 
 export interface IUserModel extends Model<IUser> {
-  // Optional: if delivery partners are now in a separate collection,
-  // you may want to move this method to the DeliveryPartner model.
-  findDeliveryPartnersNearby(latitude: number, longitude: number, radiusKm?: number): Promise<IUser[]>;
+  // Optional: if partners are now in a separate collection,
+  // you may want to move this method to the Partner model.
+  findPartnersNearby(latitude: number, longitude: number, radiusKm?: number): Promise<IUser[]>;
 }

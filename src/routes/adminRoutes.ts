@@ -4,19 +4,13 @@ import { authLimiter } from '../middleware/rateLimit';
 import { container } from '../container/container';
 
 import { AdminController } from '../controllers/AdminController';
-// import { UserController } from '../controllers/UserController';
 import { loginSchema } from '../validators/auth';
-// import { authenticateAdmin } from '../middleware/authenticateAdmin';
+import { getPropertiesQuerySchema } from '../validators/property';
 import { authenticate, authorize } from '../middleware/auth';
 import { UserRole } from '../types';
-// import { pagination } from '../middleware/pagination';
-// import { getUsersSchema } from '../validators/user';
 
 const router = Router();
 const adminController = container.resolve(AdminController);
-// const userController = container.resolve(UserController);
-// import { validateParams } from '../middleware/validation';
-// import { idParamSchema } from '../validators/params';
 // Public routes
 router.post('/login', authLimiter, validate(loginSchema), adminController.adminLogin);
 
@@ -28,11 +22,22 @@ router.get('/users/:id', adminController.getUserById);
 router.put('/users/:id', adminController.updateUserStatus);
 
 router.get('/partners', adminController.getAllPartners);
+router.get('/partners/requests', adminController.getAllPartnersRequest); // Specific route BEFORE generic :id route
 router.get('/partners/:id', adminController.getPartnerDetails);
+router.get('/partners/:id/verification-details', adminController.getPartnerDetails); // Mapping to getPartnerDetails for full object
 router.put('/partners/:id', adminController.updatePartnerStatus);
+router.patch('/partners/:id/verify', adminController.updatePartnerDocumentStatus);
 router.post('/partners/send-email', adminController.sendPartnerEmail);
 
-// router.get('/partners/requests',adminController.getAllPartnersRequest);
+router.get('/properties', adminController.getAllProperties);
+router.get('/properties/applications', adminController.getAllPropertyApplications); // Specific route BEFORE generic :id route
+router.get('/properties/:id', adminController.getPropertyById);
+router.put('/properties/:id', adminController.updateProperty);
+router.get('/properties/:id/verification-details', adminController.getPropertyVerificationDetails);
+router.patch('/properties/:id/document-status', adminController.updatePropertyDocumentStatus);
+router.patch('/properties/:id/verify', adminController.verifyProperty);
+
+
 // router.get('/', authorize([UserRole.ADMIN]), pagination, validateQuery(getUsersSchema), userController.getAllUsers);
 // router.get('/stats', authorize([UserRole.ADMIN]), userController.getUserStats);
 // router.get('/:id', authorize([UserRole.ADMIN]), validateParams(idParamSchema), userController.getUserById);

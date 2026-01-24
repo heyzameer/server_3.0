@@ -73,12 +73,15 @@ export const authenticatePartner = async (req: Request, res: Response, next: Nex
       return sendError(res, 'Account is deactivated', 401);
     }
 
-    // Add partner info to request
+    // Add partner info to request first
     req.partner = {
       partnerId: decoded.userId,
       email: decoded.email,
       role: decoded.role
     };
+
+    // Attach isActive status for downstream use
+    (req.partner as any).isActive = partner.isActive;
 
     // For compatibility with existing code that uses req.user
     req.user = {
