@@ -12,7 +12,7 @@ const addressSchema = new Schema<IAddress>(
     ownerModel: {
       type: String,
       required: true,
-      enum: ['User', 'DeliveryPartner']
+      enum: ['User', 'Partner']
     },
 
     street: { type: String, required: true },

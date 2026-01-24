@@ -84,9 +84,9 @@ export class PartnerRepository extends BaseRepository<IPartner> implements IPart
   }
 
   async updateDocumentStatus(
-    partnerId: string, 
-    documentType: string, 
-    status: DocumentStatus, 
+    partnerId: string,
+    documentType: string,
+    status: DocumentStatus,
     rejectionReason?: string
   ): Promise<IPartner | null> {
     const updateData: any = {
@@ -126,5 +126,17 @@ export class PartnerRepository extends BaseRepository<IPartner> implements IPart
   async updateVerificationStatus(partnerId: string, isVerified: boolean): Promise<IPartner | null> {
     const status = isVerified ? PartnerStatus.VERIFIED : PartnerStatus.PENDING;
     return this.update(partnerId, { isVerified, status });
+  }
+
+  async findByAadharStatus(status: string, pagination: PaginationOptions): Promise<PaginatedResult<IPartner>> {
+    const filter = {
+      'personalDocuments.aadharStatus': status,
+      isActive: true
+    };
+    return this.findWithPagination(filter, pagination);
+  }
+
+  async findAll(filter: FilterQuery<IPartner>, pagination: PaginationOptions): Promise<PaginatedResult<IPartner>> {
+    return this.findWithPagination(filter, pagination);
   }
 }

@@ -15,7 +15,10 @@ const get = (key: string, required = false, fallback?: string): string | undefin
 
 const getInt = (key: string, required = false, fallback?: number, radix = 10): number => {
   const raw = get(key, required, fallback !== undefined ? String(fallback) : undefined);
-  if (raw === undefined) error(`${key} is not defined`);
+  if (raw === undefined) {
+    if (required) error(`${key} is not defined`);
+    return fallback as number;
+  }
   const n = parseInt(raw, radix);
   if (Number.isNaN(n)) error(`${key} is not a valid integer`);
   return n;
@@ -56,7 +59,7 @@ const config: AppConfig = {
 
   rateLimit: {
     windowMs: getInt('RATE_LIMIT_WINDOW_MS', false, 15 * 60 * 1000), // default 15 minutes
-    max: getInt('RATE_LIMIT_MAX', false, 100),
+    max: getInt('RATE_LIMIT_MAX', false, 1000),
   },
 
   upload: {
@@ -71,9 +74,8 @@ const config: AppConfig = {
   },
 
   // AWS S3 Configuration
-  // not implemented yet
   aws: {
-    region: get('AWS_REGION', false, 'us-east-1')!,
+    region: get('AWS_REGION', false, 'ap-south-1')!,
     accessKeyId: get('AWS_ACCESS_KEY_ID', false, '')!,
     secretAccessKey: get('AWS_SECRET_ACCESS_KEY', false, '')!,
     s3BucketName: get('AWS_S3_BUCKET_NAME', false, '')!,
@@ -94,13 +96,17 @@ const config: AppConfig = {
       pass: get('EMAIL_PASS', false, '')!,
     },
   },
-
-  // logs: provide sane defaults; expecting LOG_MAX_SIZE like "20m" and LOG_MAX_FILES like "7d" or a number
   logs: {
     level: get('LOG_LEVEL', false, 'info')!,
     maxSize: get('LOG_MAX_SIZE', false, '20m')!,
     maxFiles: get('LOG_MAX_FILES', false, '7d')!,
   },
+  encryptionSecret: get('ENCRYPTION_SECRET', false, 'bf3c7263336113b2767096e25c0406adbf3c7263336113b2767096e25c0406ad')!,
+  gemini: {
+    apiKey: get('GEMINI_API_KEY', false, '')!,
+  },
+  useGeminiOCR: get('USE_GEMINI_OCR', false, 'false')! === 'true',
+  signedUrlExpiration: Number(get('SIGNED_URL_EXPIRATION', false, '86400')) || 86400,
 };
 
 // compute derived values

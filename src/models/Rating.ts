@@ -6,7 +6,7 @@ const RatingSchema = new Schema<IRating>(
     ratedByModel: {
       type: String,
       required: true,
-      enum: ['User', 'DeliveryPartner'],
+      enum: ['User', 'Partner'],
     },
     ratedById: {
       type: Schema.Types.ObjectId,
@@ -17,7 +17,7 @@ const RatingSchema = new Schema<IRating>(
     ratedForModel: {
       type: String,
       required: true,
-      enum: ['User', 'DeliveryPartner'],
+      enum: ['User', 'Partner'],
     },
     ratedForId: {
       type: Schema.Types.ObjectId,

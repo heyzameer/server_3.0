@@ -8,7 +8,7 @@ import { IOTP } from '../interfaces/IModel/IOTP';
 
 
 @injectable()
-export class OTPRepository extends BaseRepository<IOTP>  implements IOTPRepository {
+export class OTPRepository extends BaseRepository<IOTP> implements IOTPRepository {
   constructor() {
     super(OTP);
   }
@@ -27,10 +27,10 @@ export class OTPRepository extends BaseRepository<IOTP>  implements IOTPReposito
   ): Promise<IOTP> {
     // Invalidate existing OTPs for this user and type
     await this.updateMany(
-      { 
-        userId: new mongoose.Types.ObjectId(userId), 
-        type, 
-        status: OTPStatus.PENDING 
+      {
+        userId: new mongoose.Types.ObjectId(userId),
+        type,
+        status: OTPStatus.PENDING
       },
       { status: OTPStatus.EXPIRED }
     );
@@ -56,7 +56,7 @@ export class OTPRepository extends BaseRepository<IOTP>  implements IOTPReposito
 
   async verifyOTP(userId: string, type: OTPType, code: string): Promise<{ success: boolean; message: string }> {
     const otp = await this.findValidOTP(userId, type, code);
-    
+
     if (!otp) {
       return { success: false, message: 'Invalid or expired OTP' };
     }
@@ -99,11 +99,11 @@ export class OTPRepository extends BaseRepository<IOTP>  implements IOTPReposito
   }
 
   async invalidateUserOTPs(userId: string, type?: OTPType): Promise<number> {
-    const filter: any = { 
-      userId: new mongoose.Types.ObjectId(userId), 
-      status: OTPStatus.PENDING 
+    const filter: any = {
+      userId: new mongoose.Types.ObjectId(userId),
+      status: OTPStatus.PENDING
     };
-    
+
     if (type) {
       filter.type = type;
     }
@@ -118,9 +118,9 @@ export class OTPRepository extends BaseRepository<IOTP>  implements IOTPReposito
       filter.type = type;
     }
 
-    return this.find(filter, { 
-      sort: { createdAt: -1 }, 
-      limit 
+    return this.find(filter, {
+      sort: { createdAt: -1 },
+      limit
     });
   }
 
@@ -162,29 +162,29 @@ export class OTPRepository extends BaseRepository<IOTP>  implements IOTPReposito
 
   async deleteExpiredOTPs(daysOld: number = 7): Promise<number> {
     const cutoffDate = new Date(Date.now() - daysOld * 24 * 60 * 60 * 1000);
-    
+
     const result = await this.deleteMany({
       $or: [
         { expiresAt: { $lt: cutoffDate } },
-        { 
-          status: { $in: [OTPStatus.VERIFIED, OTPStatus.EXPIRED, OTPStatus.FAILED] }, 
-          createdAt: { $lt: cutoffDate } 
+        {
+          status: { $in: [OTPStatus.VERIFIED, OTPStatus.EXPIRED, OTPStatus.FAILED] },
+          createdAt: { $lt: cutoffDate }
         }
       ]
     });
-    
+
     return result;
   }
 
   // Additional helper methods for better OTP management
-  async createPickupOTP(userId: string, orderId: string): Promise<IOTP> {
+  async createCheckInOTP(userId: string, orderId: string): Promise<IOTP> {
     const code = this.generateOTPCode();
-    return this.createOTP(userId, OTPType.PICKUP, code, orderId, 30); // 30 minutes for pickup
+    return this.createOTP(userId, OTPType.CHECKIN, code, orderId, 30); // 30 minutes for check-in
   }
 
-  async createDeliveryOTP(userId: string, orderId: string): Promise<IOTP> {
+  async createCompletionOTP(userId: string, orderId: string): Promise<IOTP> {
     const code = this.generateOTPCode();
-    return this.createOTP(userId, OTPType.DELIVERY, code, orderId, 30); // 30 minutes for delivery
+    return this.createOTP(userId, OTPType.COMPLETION, code, orderId, 30); // 30 minutes for completion
   }
 
   async createVerificationOTP(userId: string, type: OTPType.PHONE_VERIFICATION | OTPType.EMAIL_VERIFICATION): Promise<IOTP> {
@@ -250,15 +250,15 @@ export class OTPRepository extends BaseRepository<IOTP>  implements IOTPReposito
   }
 
   async getOTPsByStatus(status: OTPStatus, limit: number = 100): Promise<IOTP[]> {
-    return this.find({ status }, { 
-      sort: { createdAt: -1 }, 
-      limit 
+    return this.find({ status }, {
+      sort: { createdAt: -1 },
+      limit
     });
   }
 
   async getExpiringOTPs(minutesUntilExpiration: number = 5): Promise<IOTP[]> {
     const expirationTime = new Date(Date.now() + minutesUntilExpiration * 60 * 1000);
-    
+
     return this.find({
       status: OTPStatus.PENDING,
       expiresAt: { $lte: expirationTime, $gt: new Date() }

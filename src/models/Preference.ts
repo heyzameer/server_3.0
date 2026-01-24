@@ -13,7 +13,7 @@ const preferenceSchema = new Schema<IPreference>(
     ownerModel: {
       type: String,
       required: true,
-      enum: ['User', 'DeliveryPartner']
+      enum: ['User', 'Partner']
     },
     notifications: {
       email: { type: Boolean, default: true },

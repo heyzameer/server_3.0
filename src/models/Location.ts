@@ -73,8 +73,8 @@ locationSchema.index({ userId: 1, createdAt: -1 });
 // TTL index to automatically delete old location data (keep for 30 days)
 locationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
 
-// Static method to find nearby delivery partners
-locationSchema.statics.findNearbyDeliveryPartners = function (
+// Static method to find nearby partners
+locationSchema.statics.findNearbyPartners = function (
   latitude: number,
   longitude: number,
   radiusKm: number = 10
@@ -101,9 +101,9 @@ locationSchema.statics.findNearbyDeliveryPartners = function (
     },
     {
       $match: {
-        'user.role': 'delivery_partner',
+        'user.role': 'partner',
         'user.isActive': true,
-        'user.deliveryPartnerInfo.isOnline': true,
+        'user.partnerInfo.isOnline': true,
         isOnline: true,
       },
     },

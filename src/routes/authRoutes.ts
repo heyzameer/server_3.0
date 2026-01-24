@@ -21,6 +21,9 @@ const router = Router();
 const authController = container.resolve(AuthController);
 
 import '../config/passport'; // Import passport config to register strategy
+import { userUpload } from '../middleware/upload';
+import { updateProfileSchema } from '../validators/user';
+
 // ... existing routes ...
 // 1. Initiate Google Login
 router.get(
@@ -51,6 +54,8 @@ router.post('/request-otp', otpLimiter, validate(requestOTPSchema), authControll
 router.post('/resend-otp', otpLimiter, validate(resendOTPSchema), authController.requestResendOTP);
 router.post('/verify-otp', validate(verifyOTPSchema), authController.verifyOTP);
 router.post('/logout', authController.logout);
+router.put('/profile', userUpload, validate(updateProfileSchema), authController.updateProfile);
+router.put('/profile', userUpload, validate(updateProfileSchema), authController.updateProfile);
 
 
 

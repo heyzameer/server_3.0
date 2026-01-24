@@ -16,6 +16,9 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.858.0",
+    "@aws-sdk/s3-request-presigner": "^3.971.0",
+    "@google/generative-ai": "^0.24.1",
+    "axios": "^1.13.2",
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.7",
@@ -36,9 +39,11 @@
     "passport-google-oauth20": "^2.0.0",
     "reflect-metadata": "^0.2.2",
     "socket.io": "^4.7.2",
+    "tesseract.js": "^7.0.0",
     "tsyringe": "^4.10.0",
     "winston": "^3.10.0",
-    "winston-daily-rotate-file": "^5.0.0"
+    "winston-daily-rotate-file": "^5.0.0",
+    "yup": "^1.7.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",

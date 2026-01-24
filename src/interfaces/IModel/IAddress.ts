@@ -2,7 +2,7 @@ import { Document, Types } from "mongoose";
 
 export interface IAddress extends Document {
   owner: Types.ObjectId;
-  ownerModel: 'User' | 'DeliveryPartner';
+  ownerModel: 'User' | 'Partner';
   street: string;
   isDefault?: boolean;
   streetNumber?: string;

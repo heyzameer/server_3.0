@@ -16,27 +16,27 @@ export class OrderRepository extends BaseRepository<IOrder> implements IOrderRep
     return this.findOne({ orderNumber });
   }
 
-  async findByCustomer(customerId: string, pagination: PaginationOptions): Promise<PaginatedResult<IOrder>> {
+  async findByCustomer(userId: string, pagination: PaginationOptions): Promise<PaginatedResult<IOrder>> {
     return this.findWithPagination(
-      { customerId },
+      { userId },
       pagination,
-      ['customerId', 'deliveryPartnerId']
+      ['userId', 'partnerId']
     );
   }
 
-  async findByDeliveryPartner(
-    deliveryPartnerId: string,
+  async findByPartner(
+    partnerId: string,
     pagination: PaginationOptions
   ): Promise<PaginatedResult<IOrder>> {
     return this.findWithPagination(
-      { deliveryPartnerId },
+      { partnerId },
       pagination,
-      ['customerId', 'deliveryPartnerId']
+      ['customerId', 'partnerId']
     );
   }
 
   async findByStatus(status: OrderStatus, pagination: PaginationOptions): Promise<PaginatedResult<IOrder>> {
-    return this.findWithPagination({ status }, pagination, ['customerId', 'deliveryPartnerId']);
+    return this.findWithPagination({ status }, pagination, ['customerId', 'partnerId']);
   }
 
   async findActiveOrders(pagination: PaginationOptions): Promise<PaginatedResult<IOrder>> {
@@ -45,27 +45,27 @@ export class OrderRepository extends BaseRepository<IOrder> implements IOrderRep
       OrderStatus.CONFIRMED,
       OrderStatus.PICKED_UP,
       OrderStatus.IN_TRANSIT,
-      OrderStatus.OUT_FOR_DELIVERY,
+      OrderStatus.OUT_FOR_SERVICE,
     ];
 
     return this.findWithPagination(
       { status: { $in: activeStatuses } },
       pagination,
-      ['customerId', 'deliveryPartnerId']
+      ['customerId', 'partnerId']
     );
   }
 
   async findAvailableOrders(pagination: PaginationOptions): Promise<PaginatedResult<IOrder>> {
     return this.findWithPagination(
-      { status: OrderStatus.CONFIRMED, deliveryPartnerId: { $exists: false } },
+      { status: OrderStatus.CONFIRMED, partnerId: { $exists: false } },
       pagination,
       'customerId'
     );
   }
 
-  async assignDeliveryPartner(orderId: string, deliveryPartnerId: string): Promise<IOrder | null> {
+  async assignPartner(orderId: string, partnerId: string): Promise<IOrder | null> {
     return this.update(orderId, {
-      deliveryPartnerId,
+      partnerId,
       status: OrderStatus.PICKED_UP,
     });
   }
@@ -98,7 +98,7 @@ export class OrderRepository extends BaseRepository<IOrder> implements IOrderRep
   ): Promise<PaginatedResult<IOrder>> {
     const filter = {
       status: { $in: [OrderStatus.PENDING, OrderStatus.CONFIRMED] },
-      'pickupAddress.coordinates': {
+      'checkInAddress.coordinates': {
         $near: {
           $geometry: {
             type: 'Point',
@@ -112,10 +112,10 @@ export class OrderRepository extends BaseRepository<IOrder> implements IOrderRep
     return this.findWithPagination(filter, pagination, 'customerId');
   }
 
-  async getOrderStats(deliveryPartnerId?: string): Promise<any> {
+  async getOrderStats(partnerId?: string): Promise<any> {
     const matchStage: any = {};
-    if (deliveryPartnerId) {
-      matchStage.deliveryPartnerId = deliveryPartnerId;
+    if (partnerId) {
+      matchStage.partnerId = partnerId;
     }
 
     return this.aggregate([
@@ -157,7 +157,7 @@ export class OrderRepository extends BaseRepository<IOrder> implements IOrderRep
         },
       },
       pagination,
-      ['customerId', 'deliveryPartnerId']
+      ['customerId', 'partnerId']
     );
   }
 
@@ -176,8 +176,8 @@ export class OrderRepository extends BaseRepository<IOrder> implements IOrderRep
     comment: string,
     ratingType: 'customer' | 'partner'
   ): Promise<IOrder | null> {
-    const updateField = ratingType === 'customer' ? 'customerRating' : 'deliveryPartnerRating';
-    const commentField = ratingType === 'customer' ? 'customerComment' : 'deliveryPartnerComment';
+    const updateField = ratingType === 'customer' ? 'customerRating' : 'partnerRating';
+    const commentField = ratingType === 'customer' ? 'customerComment' : 'partnerComment';
 
     return this.update(orderId, {
       [`rating.${updateField}`]: rating,
