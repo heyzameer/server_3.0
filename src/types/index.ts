@@ -212,6 +212,11 @@ export interface AppConfig {
   };
   useGeminiOCR: boolean;
   signedUrlExpiration: number;
+  redis: {
+    host: string;
+    port: number;
+    password?: string;
+  };
 }
 
 export interface CustomError extends Error {

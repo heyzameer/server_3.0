@@ -12,7 +12,6 @@ import { IOTPRepository } from '../interfaces/IRepository/IOTPRepository';
 import { IUserRepository } from '../interfaces/IRepository/IUserRepository';
 import { IPartnerRepository } from '../interfaces/IRepository/IPartnerRepository';
 import { IUser } from '../interfaces/IModel/IUser';
-import { IPartner } from '../interfaces/IModel/IPartner';
 import { IEmailService } from '../interfaces/IService/IEmailService';
 import { HttpStatus } from '../enums/HttpStatus';
 import { ResponseMessages } from '../enums/ResponseMessages';

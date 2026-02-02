@@ -1,5 +1,3 @@
-
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 
@@ -14,7 +12,6 @@ if (!apiKey) {
 
 async function listModels() {
     try {
-        const genAI = new GoogleGenerativeAI(apiKey);
         // Explicitly use v1 or let it default
         const result = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
         const data = await result.json();

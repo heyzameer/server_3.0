@@ -255,6 +255,11 @@ export const deleteS3File = async (key: string): Promise<boolean> => {
 // Helper function to generate signed URL for S3 file
 export const getSignedFileUrl = async (keyOrUrl: string, expiresIn: number = config.signedUrlExpiration): Promise<string> => {
   try {
+    // Return empty string if no key/URL provided
+    if (!keyOrUrl || keyOrUrl.trim() === '') {
+      return '';
+    }
+
     const { GetObjectCommand } = await import('@aws-sdk/client-s3');
     const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
 

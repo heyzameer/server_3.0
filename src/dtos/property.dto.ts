@@ -35,10 +35,10 @@ export interface PropertyDetailsResponseDto {
     };
     images: string[];
     coverImage?: string;
-    pricePerNight: number;
-    maxGuests: number;
-    totalRooms: number;
-    availableRooms: number;
+    // pricePerNight: number; // Moved to Room model
+    // maxGuests: number; // Moved to Room model
+    // totalRooms: number; // Moved to Room model
+    // availableRooms: number; // Moved to Room model
     isActive: boolean;
     isVerified: boolean;
     verificationStatus: string;

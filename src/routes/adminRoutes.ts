@@ -5,7 +5,6 @@ import { container } from '../container/container';
 
 import { AdminController } from '../controllers/AdminController';
 import { loginSchema } from '../validators/auth';
-import { getPropertiesQuerySchema } from '../validators/property';
 import { authenticate, authorize } from '../middleware/auth';
 import { UserRole } from '../types';
 

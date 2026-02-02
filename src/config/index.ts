@@ -107,6 +107,11 @@ const config: AppConfig = {
   },
   useGeminiOCR: get('USE_GEMINI_OCR', false, 'false')! === 'true',
   signedUrlExpiration: Number(get('SIGNED_URL_EXPIRATION', false, '86400')) || 86400,
+  redis: {
+    host: get('REDIS_HOST', false, 'localhost')!,
+    port: getInt('REDIS_PORT', false, 6379),
+    password: get('REDIS_PASSWORD', false),
+  },
 };
 
 // compute derived values

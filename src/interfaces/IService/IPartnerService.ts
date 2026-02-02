@@ -1,6 +1,5 @@
-import { PartnerRegistrationData, BasicPartnerRegistrationData, PaginationOptions, PaginatedResult } from '../../types';
+import { BasicPartnerRegistrationData, PaginationOptions, PaginatedResult } from '../../types';
 import { IPartner } from '../IModel/IPartner';
-import { IProperty } from '../IModel/IProperty';
 
 /**
  * Service interface for partner-related operations.
@@ -119,6 +118,4 @@ export interface IPartnerService {
      * @param partner - The partner object.
      */
     injectDecryptedDetails(partner: IPartner): IPartner;
-
-    getAllProperties(pagination?: PaginationOptions, filter?: any): Promise<PaginatedResult<IProperty> | IProperty[]>;
 }

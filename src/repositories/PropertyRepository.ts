@@ -58,6 +58,11 @@ export class PropertyRepository extends BaseRepository<IProperty> implements IPr
             query['address.city'] = { $regex: new RegExp(filters.city, 'i') };
         }
 
+        // Destination filter
+        if (filters.destinationId) {
+            query.destinationId = filters.destinationId;
+        }
+
         // Search filter (search in propertyName or city)
         if (filters.search) {
             query.$or = [
