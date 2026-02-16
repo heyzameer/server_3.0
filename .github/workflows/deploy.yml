@@ -1,0 +1,191 @@
+name: Deploy Backend to EC2
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-south-1
+  EC2_HOST: ${{ secrets.EC2_HOST }}
+  EC2_USER: ubuntu
+  APP_DIR: /opt/travel-hub
+  ECR_REPOSITORY: travel-hub-backend
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Create ECR repository if it doesn't exist
+        continue-on-error: true
+        run: |
+          aws ecr describe-repositories --repository-names ${{ env.ECR_REPOSITORY }} || \
+          aws ecr create-repository --repository-name ${{ env.ECR_REPOSITORY }} \
+            --image-scanning-configuration scanOnPush=true \
+            --encryption-configuration encryptionType=AES256
+
+      - name: Build, tag, and push Docker image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "Building Docker image..."
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          
+          echo "Pushing Docker images to ECR..."
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          
+          echo "Image pushed successfully!"
+          echo "IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to EC2
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          ssh ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'ENDSSH'
+            set -e
+            
+            echo "=== Starting deployment ==="
+            
+            # Navigate to app directory
+            cd ${{ env.APP_DIR }}
+            
+            # Pull latest code
+            echo "Pulling latest code from GitHub..."
+            git fetch origin
+            git reset --hard origin/main
+            
+            # Login to ECR
+            echo "Logging in to Amazon ECR..."
+            aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+            
+            # Pull latest Docker image
+            echo "Pulling latest Docker image..."
+            docker pull ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+            
+            # Fetch environment variables from AWS Parameter Store
+            echo "Fetching environment variables from AWS Parameter Store..."
+            if [ -f scripts/fetch-env-from-aws.sh ]; then
+              bash scripts/fetch-env-from-aws.sh
+            else
+              echo "Warning: fetch-env-from-aws.sh not found, using existing .env"
+            fi
+            
+            # Stop and remove old containers
+            echo "Stopping old containers..."
+            docker-compose down || true
+            
+            # Start new containers
+            echo "Starting new containers..."
+            docker-compose up -d
+            
+            # Wait for containers to be healthy
+            echo "Waiting for containers to be healthy..."
+            sleep 10
+            
+            # Check container status
+            docker-compose ps
+            
+            # Clean up old images (keep last 3)
+            echo "Cleaning up old Docker images..."
+            docker images ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }} --format "{{.ID}} {{.CreatedAt}}" | tail -n +4 | awk '{print $1}' | xargs -r docker rmi -f || true
+            
+            echo "=== Deployment completed successfully! ==="
+          ENDSSH
+
+      - name: Health Check
+        run: |
+          echo "Waiting for application to start..."
+          sleep 30
+          
+          echo "Performing health check..."
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if curl --silent --fail https://api.letsgoto.in/health; then
+              echo "✓ Health check passed!"
+              exit 0
+            else
+              echo "Health check attempt $((RETRY_COUNT + 1)) failed, retrying..."
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              sleep 10
+            fi
+          done
+          
+          echo "✗ Health check failed after $MAX_RETRIES attempts!"
+          exit 1
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "Deployment failed, initiating rollback..."
+          ssh ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'ENDSSH'
+            cd ${{ env.APP_DIR }}
+            
+            # Get previous image tag
+            PREVIOUS_TAG=$(docker images ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }} --format "{{.Tag}}" | grep -v latest | head -n 2 | tail -n 1)
+            
+            if [ -n "$PREVIOUS_TAG" ]; then
+              echo "Rolling back to previous image: $PREVIOUS_TAG"
+              docker-compose down
+              docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$PREVIOUS_TAG ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+              docker-compose up -d
+              echo "Rollback completed"
+            else
+              echo "No previous image found, cannot rollback"
+            fi
+          ENDSSH
+
+      - name: Send Slack notification
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            Backend Deployment ${{ job.status }}
+            Environment: Production
+            Commit: ${{ github.sha }}
+            Author: ${{ github.actor }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        continue-on-error: true
+
+      - name: Deployment Summary
+        if: success()
+        run: |
+          echo "╔════════════════════════════════════════════════════════╗"
+          echo "║           Deployment Summary                           ║"
+          echo "╚════════════════════════════════════════════════════════╝"
+          echo "Status: ✓ SUCCESS"
+          echo "Environment: Production"
+          echo "Image: ${{ env.IMAGE_URI }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Author: ${{ github.actor }}"
+          echo "Deployed at: $(date)"
+          echo "╚════════════════════════════════════════════════════════╝"
