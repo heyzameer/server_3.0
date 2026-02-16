@@ -9,20 +9,23 @@ import { IOrderRepository } from '../interfaces/IRepository/IOrderRepository';
 import { IPartnerRepository } from '../interfaces/IRepository/IPartnerRepository';
 import { IPropertyRepository } from '../interfaces/IRepository/IPropertyRepository';
 import { IRoomRepository } from '../interfaces/IRepository/IRoomRepository';
-import { IRoomAvailabilityRepository } from '../repositories/RoomAvailabilityRepository';
-
-// Service interfaces
+import { IRoomAvailabilityRepository } from '../interfaces/IRepository/IRoomAvailabilityRepository';
+import { IBookingRepository } from '../interfaces/IRepository/IBookingRepository';
+import { IMealPlanRepository } from '../interfaces/IRepository/IMealPlanRepository';
+import { IActivityRepository } from '../interfaces/IRepository/IActivityRepository';
+import { IPackageRepository } from '../interfaces/IRepository/IPackageRepository';
 import { IUserService } from '../interfaces/IService/IUserService';
 import { IAuthService } from '../interfaces/IService/IAuthService';
 import { ILocationService } from '../interfaces/IService/ILocationService';
 import { IPartnerService } from '../interfaces/IService/IPartnerService';
 import { IPropertyService } from '../interfaces/IService/IPropertyService';
-import { IRoomService } from '../services/RoomService';
-import { IAvailabilityService } from '../services/AvailabilityService';
-import { IBookingService } from '../services/BookingService';
+import { IRoomService } from '../interfaces/IService/IRoomService';
+import { IAvailabilityService } from '../interfaces/IService/IAvailabilityService';
+import { IBookingService } from '../interfaces/IService/IBookingService';
 import { IEmailNotificationService } from '../services/EmailNotificationService';
 import { IEmailService } from '../interfaces/IService/IEmailService';
 import { IOCRService } from '../interfaces/IService/IOCRService';
+import { IPaymentService } from '../interfaces/IService/IPaymentService';
 
 // Implementations
 import { UserRepository } from '../repositories/UserRepository';
@@ -33,6 +36,7 @@ import { PartnerRepository } from '../repositories/PartnerRepository';
 import { PropertyRepository } from '../repositories/PropertyRepository';
 import { RoomRepository } from '../repositories/RoomRepository';
 import { RoomAvailabilityRepository } from '../repositories/RoomAvailabilityRepository';
+import { BookingRepository } from '../repositories/BookingRepository';
 import { UserService } from '../services/UserService';
 import { AuthService } from '../services/AuthService';
 import { LocationService } from '../services/LocationService';
@@ -46,6 +50,7 @@ import { EmailService } from '../services/emailService';
 import { OCRService } from '../services/OCRService';
 import { GeminiOCRService } from '../services/GeminiOCRService';
 import { RedisService } from '../services/RedisService';
+import { PaymentService } from '../services/PaymentService';
 
 // Controllers
 import { UserController } from '../controllers/UserController';
@@ -57,14 +62,12 @@ import { RoomController } from '../controllers/RoomController';
 import { MealPlanController } from '../controllers/MealPlanController';
 import { ActivityController } from '../controllers/ActivityController';
 import { BookingController } from '../controllers/BookingController';
+import { PaymentController } from '../controllers/PaymentController';
 
 // Interfaces
-import { IMealPlanRepository } from '../repositories/MealPlanRepository';
-import { IMealPlanService } from '../services/MealPlanService';
-import { IActivityRepository } from '../repositories/ActivityRepository';
-import { IActivityService } from '../services/ActivityService';
-import { IPackageRepository } from '../repositories/PackageRepository';
-import { IPackageService } from '../services/PackageService';
+import { IMealPlanService } from '../interfaces/IService/IMealPlanService';
+import { IActivityService } from '../interfaces/IService/IActivityService';
+import { IPackageService } from '../interfaces/IService/IPackageService';
 
 // Implementations
 import { MealPlanRepository } from '../repositories/MealPlanRepository';
@@ -101,6 +104,7 @@ container.registerSingleton<IEmailService>('EmailService', EmailService); // Ass
 container.registerSingleton<IOCRService>('OCRService', OCRService);
 container.registerSingleton<IOCRService>('GeminiOCRService', GeminiOCRService);
 container.registerSingleton('RedisService', RedisService);
+container.registerSingleton<IPaymentService>('PaymentService', PaymentService);
 // Register controllers
 container.registerSingleton(UserController);
 container.registerSingleton(AuthController);
@@ -110,6 +114,7 @@ container.registerSingleton(PropertyController);
 container.registerSingleton(RoomController);
 container.registerSingleton(MealPlanController);
 container.registerSingleton(BookingController);
+container.registerSingleton(PaymentController);
 
 // Meal Plans
 container.registerSingleton<IMealPlanRepository>('MealPlanRepository', MealPlanRepository);
@@ -130,6 +135,7 @@ container.registerSingleton<IRoomAvailabilityRepository>('RoomAvailabilityReposi
 container.registerSingleton<IAvailabilityService>('AvailabilityService', AvailabilityService);
 
 // Booking
+container.registerSingleton<IBookingRepository>('BookingRepository', BookingRepository);
 container.registerSingleton<IBookingService>('BookingService', BookingService);
 container.registerSingleton<IEmailNotificationService>('EmailNotificationService', EmailNotificationService);
 

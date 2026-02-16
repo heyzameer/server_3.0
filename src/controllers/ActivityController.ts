@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { injectable, inject } from 'tsyringe';
-import { IActivityService } from '../services/ActivityService';
+import { IActivityService } from '../interfaces/IService/IActivityService';
 import { HttpStatus } from '../enums/HttpStatus';
 import { sendSuccess } from '../utils/response';
 import { asyncHandler } from '../utils/errorHandler';

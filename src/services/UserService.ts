@@ -1,4 +1,4 @@
-// import { UserRepository } from '../repositories/UserRepository';
+import { User } from '../models/User';
 import { UserRole, PaginationOptions, PaginatedResult, Address } from '../types';
 import { createError } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
@@ -13,6 +13,7 @@ import { IAddress } from '../interfaces/IModel/IAddress';
 import { UpdateProfileDto } from '../dtos/user.dto';
 import { HttpStatus } from '../enums/HttpStatus';
 import { ResponseMessages } from '../enums/ResponseMessages';
+import { IPropertyService } from '../interfaces/IService/IPropertyService';
 
 /**
  * Service for handling user-related operations.
@@ -24,7 +25,8 @@ export class UserService implements IUserService {
   constructor(
     @inject('UserRepository') private userRepository: IUserRepository,
     @inject('addressRepository') private addressRepository: IAddressRepository,
-    @inject('OrderRepository') private orderRepository: IOrderRepository
+    @inject('OrderRepository') private orderRepository: IOrderRepository,
+    @inject('PropertyService') private propertyService: IPropertyService
   ) { }
 
   /**
@@ -623,6 +625,71 @@ export class UserService implements IUserService {
       };
     } catch (error) {
       logger.error('Get user stats failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Toggle a property in the user's wishlist.
+   */
+  async toggleWishlist(userId: string, propertyId: string): Promise<{ action: 'added' | 'removed', user: IUser }> {
+    try {
+      const user = await this.userRepository.findById(userId);
+      if (!user) {
+        throw createError(ResponseMessages.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
+      }
+
+      const wishlist = user.wishlist || [];
+      const index = wishlist.findIndex(id => id.toString() === propertyId);
+
+      let action: 'added' | 'removed';
+      if (index === -1) {
+        wishlist.push(propertyId as any);
+        action = 'added';
+      } else {
+        wishlist.splice(index, 1);
+        action = 'removed';
+      }
+
+      const updatedUser = await this.userRepository.update(userId, { wishlist });
+      if (!updatedUser) {
+        throw createError(ResponseMessages.GENERIC_SUCCESS, HttpStatus.INTERNAL_SERVER_ERROR);
+      }
+
+      return { action, user: updatedUser };
+    } catch (error) {
+      logger.error('Toggle wishlist failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get the current user's wishlist with populated property details.
+   */
+  async getWishlist(userId: string): Promise<any[]> {
+    try {
+      const user = await User.findById(userId).populate('wishlist');
+
+      if (!user) {
+        throw createError(ResponseMessages.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
+      }
+
+      const wishlistItems = user.wishlist || [];
+
+      // Inject signed URLs and min prices for each property in wishlist
+      const processedWishlist = await Promise.all(wishlistItems.map(async (item: any) => {
+        // If populated, item will be a property object
+        if (item && item._id) {
+          let processed = await this.propertyService.injectSignedUrls(item);
+          processed = await this.propertyService.injectMinPrice(processed);
+          return processed;
+        }
+        return item;
+      }));
+
+      return processedWishlist;
+    } catch (error) {
+      logger.error('Get wishlist failed:', error);
       throw error;
     }
   }

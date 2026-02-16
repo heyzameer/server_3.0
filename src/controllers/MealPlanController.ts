@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { injectable, inject } from 'tsyringe';
-import { IMealPlanService } from '../services/MealPlanService';
+import { IMealPlanService } from '../interfaces/IService/IMealPlanService';
 import { HttpStatus } from '../enums/HttpStatus';
 import { sendSuccess } from '../utils/response';
 import { asyncHandler } from '../utils/errorHandler';

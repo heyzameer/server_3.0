@@ -2,19 +2,11 @@ import { injectable, inject } from 'tsyringe';
 import { IRoomRepository } from '../interfaces/IRepository/IRoomRepository';
 import { IPropertyRepository } from '../interfaces/IRepository/IPropertyRepository';
 import { IRoom } from '../interfaces/IModel/IRoom';
+import { IRoomService } from '../interfaces/IService/IRoomService';
 import { AppError } from '../utils/errorHandler';
 import { HttpStatus } from '../enums/HttpStatus';
 import mongoose from 'mongoose';
 import { getSignedFileUrl } from '../middleware/upload';
-
-export interface IRoomService {
-    createRoom(propertyId: string, roomData: Partial<IRoom>): Promise<IRoom | IRoom[]>;
-    getRoomsByProperty(propertyId: string): Promise<IRoom[]>;
-    getRoomById(roomId: string): Promise<IRoom>;
-    updateRoom(roomId: string, roomData: Partial<IRoom>): Promise<IRoom>;
-    deleteRoom(roomId: string): Promise<boolean>;
-    uploadRoomImages(roomId: string, files: Express.Multer.File[], metadata: any[]): Promise<IRoom>;
-}
 
 @injectable()
 export class RoomService implements IRoomService {

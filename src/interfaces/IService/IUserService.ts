@@ -24,4 +24,8 @@ export interface IUserService {
   getUserStats(): Promise<any>;
   getUserAddressById(userId: string, addressId: string): Promise<IAddress>;
   setDefaultAddress(userId: string, addressId: string): Promise<IAddress | null>;
+
+  // Wishlist Methods
+  toggleWishlist(userId: string, propertyId: string): Promise<{ action: 'added' | 'removed', user: IUser }>;
+  getWishlist(userId: string): Promise<any[]>;
 }

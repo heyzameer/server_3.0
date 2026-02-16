@@ -13,6 +13,9 @@ import { PaginatedResult, PaginationOptions } from '../types';
 import { IEmailService } from '../interfaces/IService/IEmailService';
 import { getSignedFileUrl } from '../middleware/upload';
 import { IRoomRepository } from '../interfaces/IRepository/IRoomRepository';
+import { MealPlan } from '../models/MealPlan';
+import { Activity } from '../models/Activity';
+import { Package } from '../models/Package';
 
 @injectable()
 export class PropertyService implements IPropertyService {
@@ -213,18 +216,45 @@ export class PropertyService implements IPropertyService {
         // Inject Base Price
         signedProperty = await this.injectMinPrice(signedProperty);
 
+        // Inject Meal Plans and Activities
+        const mealPlans = await MealPlan.find({ propertyId: id, isActive: true });
+        const activities = await Activity.find({ propertyId: id, isActive: true });
+        const packages = await Package.find({ propertyId: id, isActive: true })
+            .populate('mealPlanId', 'name')
+            .populate('includedActivities.activityId', 'name');
+
         // Convert to object to safely delete sensitive fields if needed, 
         // though strictly typing might make this tricky. 
         // For now, we rely on the controller or assumes frontend ignores extra fields.
         // But optimally we should set sensitive fields to undefined/null.
-
-        // Note: The caller expects IProperty, so we return it as is, 
-        // trusting the frontend not to display sensitive data, 
-        // or we could explicitly nullify them here if the Object is mutable.
         const propObj = signedProperty['toObject'] ? (signedProperty as any).toObject() : signedProperty;
         delete propObj.ownershipDocuments;
         delete propObj.taxDocuments;
         delete propObj.bankingDetails;
+
+        propObj.mealPlans = mealPlans;
+        propObj.activities = await Promise.all(activities.map(async (activity) => {
+            const activityObj = (activity as any).toObject ? (activity as any).toObject() : activity;
+            if (activityObj.images && activityObj.images.length > 0) {
+                activityObj.images = await Promise.all(activityObj.images.map(async (img: any) => {
+                    if (typeof img === 'string') return await getSignedFileUrl(img);
+                    if (img && img.url) return await getSignedFileUrl(img.url);
+                    return img;
+                }));
+            }
+            return activityObj;
+        }));
+        propObj.packages = await Promise.all(packages.map(async (pkg) => {
+            const pkgObj = (pkg as any).toObject ? (pkg as any).toObject() : pkg;
+            if (pkgObj.images && pkgObj.images.length > 0) {
+                pkgObj.images = await Promise.all(pkgObj.images.map(async (img: any) => {
+                    if (typeof img === 'string') return await getSignedFileUrl(img);
+                    if (img && img.url) return await getSignedFileUrl(img.url);
+                    return img;
+                }));
+            }
+            return pkgObj;
+        }));
 
         return propObj;
     }
@@ -432,7 +462,7 @@ export class PropertyService implements IPropertyService {
         return 'PROP' + Date.now().toString().slice(-8) + Math.floor(Math.random() * 100).toString().padStart(2, '0');
     }
 
-    private async injectSignedUrls(property: IProperty): Promise<IProperty> {
+    public async injectSignedUrls(property: any): Promise<any> {
         const prop = property.toObject ? property.toObject() : property;
 
         try {
@@ -479,7 +509,7 @@ export class PropertyService implements IPropertyService {
         return prop as IProperty;
     }
 
-    private async injectMinPrice(property: IProperty): Promise<IProperty> {
+    public async injectMinPrice(property: any): Promise<any> {
         const prop = property.toObject ? property.toObject() : property;
         try {
             const rooms = await this.roomRepository.findByPropertyId(prop._id.toString());

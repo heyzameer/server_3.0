@@ -1,17 +1,11 @@
 import { injectable, inject } from 'tsyringe';
-import { IMealPlanRepository } from '../repositories/MealPlanRepository';
+import { IMealPlanRepository } from '../interfaces/IRepository/IMealPlanRepository';
 import { IPropertyRepository } from '../interfaces/IRepository/IPropertyRepository';
 import { IMealPlan } from '../interfaces/IModel/IMealPlan';
+import { IMealPlanService } from '../interfaces/IService/IMealPlanService';
 import { AppError } from '../utils/errorHandler';
 import { HttpStatus } from '../enums/HttpStatus';
-
-export interface IMealPlanService {
-    createMealPlan(propertyId: string, data: any): Promise<IMealPlan>;
-    getMealPlansByProperty(propertyId: string): Promise<IMealPlan[]>;
-    getMealPlanById(id: string): Promise<IMealPlan>;
-    updateMealPlan(id: string, data: any): Promise<IMealPlan>;
-    deleteMealPlan(id: string): Promise<IMealPlan>;
-}
+import mongoose from 'mongoose';
 
 @injectable()
 export class MealPlanService implements IMealPlanService {
@@ -21,7 +15,13 @@ export class MealPlanService implements IMealPlanService {
     ) { }
 
     async createMealPlan(propertyId: string, data: any): Promise<IMealPlan> {
-        const property = await this.propertyRepository.findByPropertyId(propertyId);
+        let property;
+        if (mongoose.isValidObjectId(propertyId)) {
+            property = await this.propertyRepository.findById(propertyId);
+        } else {
+            property = await this.propertyRepository.findByPropertyId(propertyId);
+        }
+
         if (!property) {
             throw new AppError('Property not found', HttpStatus.NOT_FOUND);
         }
@@ -34,7 +34,13 @@ export class MealPlanService implements IMealPlanService {
     }
 
     async getMealPlansByProperty(propertyId: string): Promise<IMealPlan[]> {
-        const property = await this.propertyRepository.findByPropertyId(propertyId);
+        let property;
+        if (mongoose.isValidObjectId(propertyId)) {
+            property = await this.propertyRepository.findById(propertyId);
+        } else {
+            property = await this.propertyRepository.findByPropertyId(propertyId);
+        }
+
         if (!property) {
             throw new AppError('Property not found', HttpStatus.NOT_FOUND);
         }

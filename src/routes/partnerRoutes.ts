@@ -42,5 +42,9 @@ router.get('/bookings', bookingController.getPartnerBookings);
 router.get('/bookings/:bookingId', bookingController.getPartnerBookingDetails);
 router.patch('/bookings/:bookingId/approve', bookingController.approveBooking);
 router.patch('/bookings/:bookingId/reject', bookingController.rejectBooking);
+router.patch('/bookings/:bookingId/check-in', bookingController.checkIn);
+router.patch('/bookings/:bookingId/check-out', bookingController.checkOut);
+router.patch('/bookings/:bookingId/complete', bookingController.completeBooking);
+router.patch('/bookings/:bookingId/refund', bookingController.processRefund);
 
 export default router;

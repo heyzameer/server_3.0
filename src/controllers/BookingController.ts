@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { injectable, inject } from 'tsyringe';
-import { IBookingService } from '../services/BookingService';
+import { IBookingService } from '../interfaces/IService/IBookingService';
 import { asyncHandler } from '../utils/errorHandler';
 import { HttpStatus } from '../enums/HttpStatus';
 
@@ -31,7 +31,8 @@ export class BookingController {
             checkOut: new Date(checkOut),
             rooms,
             mealPlanId,
-            activityIds
+            activityIds,
+            userId: req.user?.userId
         });
 
         res.status(HttpStatus.OK).json({
@@ -46,7 +47,7 @@ export class BookingController {
      * POST /api/v1/bookings
      */
     createBooking = asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user._id; // From auth middleware
+        const userId = req.user!.userId; // From auth middleware
         const { propertyId, partnerId, checkIn, checkOut, rooms, mealPlanId, activityIds, guestDetails } = req.body;
 
         if (!propertyId || !partnerId || !checkIn || !checkOut || !rooms || !guestDetails) {
@@ -94,7 +95,7 @@ export class BookingController {
      * GET /api/v1/users/me/bookings
      */
     getUserBookings = asyncHandler(async (req: Request, res: Response) => {
-        const userId = (req as any).user._id;
+        const userId = req.user!.userId;
 
         const bookings = await this.bookingService.getUserBookings(userId);
 
@@ -110,12 +111,37 @@ export class BookingController {
      */
     getPartnerBookings = asyncHandler(async (req: Request, res: Response) => {
         const partnerId = (req as any).partner.partnerId; // From partner auth middleware
-        const { status, approvalStatus } = req.query;
+        const { status, approvalStatus, startDate, endDate, search } = req.query;
 
-        const bookings = await this.bookingService.getPartnerBookings(partnerId, {
-            status: status as string,
-            approvalStatus: approvalStatus as string
-        });
+        console.log('🔍 getPartnerBookings original query:', req.query);
+
+        const filters: any = {};
+
+        if (status) filters.status = status;
+        if (approvalStatus) filters.partnerApprovalStatus = approvalStatus;
+
+        if (startDate || endDate) {
+            filters.bookedAt = {};
+            if (startDate) filters.bookedAt.$gte = new Date(startDate as string);
+            if (endDate) {
+                const end = new Date(endDate as string);
+                end.setHours(23, 59, 59, 999);
+                filters.bookedAt.$lte = end;
+            }
+        }
+
+        if (search) {
+            filters.$or = [
+                { bookingId: { $regex: search, $options: 'i' } },
+                { 'guestDetails.name': { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        console.log('🔍 getPartnerBookings processed filters:', JSON.stringify(filters, null, 2));
+
+        const bookings = await this.bookingService.getPartnerBookings(partnerId, filters);
+
+        console.log('  bookings found:', bookings.length);
 
         res.status(HttpStatus.OK).json({
             success: true,
@@ -176,6 +202,134 @@ export class BookingController {
         res.status(HttpStatus.OK).json({
             success: true,
             message: 'Booking rejected successfully',
+            data: booking
+        });
+    });
+
+    /**
+     * Complete booking
+     * PATCH /api/v1/partner/bookings/:bookingId/complete
+     */
+    completeBooking = asyncHandler(async (req: Request, res: Response) => {
+        const { bookingId } = req.params;
+        const partnerId = (req as any).partner.partnerId;
+
+        const booking = await this.bookingService.completeBooking(bookingId, partnerId);
+
+        res.status(HttpStatus.OK).json({
+            success: true,
+            message: 'Booking marked as completed',
+            data: booking
+        });
+    });
+
+    /**
+     * Check in guest
+     * PATCH /api/v1/partner/bookings/:bookingId/check-in
+     */
+    checkIn = asyncHandler(async (req: Request, res: Response) => {
+        const { bookingId } = req.params;
+        const partnerId = (req as any).partner.partnerId;
+
+        const booking = await this.bookingService.checkInBooking(bookingId, partnerId);
+
+        res.status(HttpStatus.OK).json({
+            success: true,
+            message: 'Guest checked in successfully',
+            data: booking
+        });
+    });
+
+    /**
+     * Check out guest
+     * PATCH /api/v1/partner/bookings/:bookingId/check-out
+     */
+    checkOut = asyncHandler(async (req: Request, res: Response) => {
+        const { bookingId } = req.params;
+        const partnerId = (req as any).partner.partnerId;
+
+        const booking = await this.bookingService.checkOutBooking(bookingId, partnerId);
+
+        res.status(HttpStatus.OK).json({
+            success: true,
+            message: 'Guest checked out successfully',
+            data: booking
+        });
+    });
+
+    /**
+     * Cancel booking (user)
+     * POST /api/v1/bookings/:bookingId/cancel
+     */
+    cancelBooking = asyncHandler(async (req: Request, res: Response) => {
+        const { bookingId } = req.params;
+        const { reason } = req.body;
+        const userId = req.user!.userId;
+
+        if (!reason) {
+            res.status(HttpStatus.BAD_REQUEST).json({
+                success: false,
+                message: 'Cancellation reason is required'
+            });
+            return;
+        }
+
+        const booking = await this.bookingService.cancelBooking(bookingId, userId, reason);
+
+        res.status(HttpStatus.OK).json({
+            success: true,
+            message: 'Booking cancelled successfully',
+            data: booking
+        });
+    });
+
+    /**
+     * Request refund (user)
+     * POST /api/v1/bookings/:bookingId/refund-request
+     */
+    requestRefund = asyncHandler(async (req: Request, res: Response) => {
+        const { bookingId } = req.params;
+        const { reason } = req.body;
+        const userId = req.user!.userId;
+
+        if (!reason) {
+            res.status(HttpStatus.BAD_REQUEST).json({
+                success: false,
+                message: 'Refund reason is required'
+            });
+            return;
+        }
+
+        const booking = await this.bookingService.requestRefund(bookingId, userId, reason);
+
+        res.status(HttpStatus.OK).json({
+            success: true,
+            message: 'Refund request submitted successfully',
+            data: booking
+        });
+    });
+
+    /**
+     * Process refund (partner/admin)
+     * PATCH /api/v1/partner/bookings/:bookingId/refund
+     */
+    processRefund = asyncHandler(async (req: Request, res: Response) => {
+        const { bookingId } = req.params;
+        const { approved, note } = req.body;
+
+        if (approved === undefined) {
+            res.status(HttpStatus.BAD_REQUEST).json({
+                success: false,
+                message: 'Approval status is required'
+            });
+            return;
+        }
+
+        const booking = await this.bookingService.processRefund(bookingId, approved, note);
+
+        res.status(HttpStatus.OK).json({
+            success: true,
+            message: approved ? 'Refund approved successfully' : 'Refund rejected',
             data: booking
         });
     });

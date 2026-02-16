@@ -103,4 +103,13 @@ export enum ResponseMessages {
     NOT_FOUND = 'Resource not found',
     AUTH_REQUIRED = 'Authentication required',
     FILE_UPLOAD_FAILED = 'File upload failed or no files provided',
+
+    // Wishlist Messages
+    WISHLIST_RETRIEVED = 'Wishlist retrieved successfully',
+    WISHLIST_TOGGLED = 'Wishlist updated successfully',
+    BOOKING_NOT_FOUND = 'Booking not found',
+    BOOKINGS_RETRIEVED = 'Bookings retrieved successfully',
+    BOOKING_RETRIEVED = 'Booking retrieved successfully',
+    BOOKING_UPDATED = 'Booking updated successfully',
+    BOOKING_DELETED = 'Booking deleted successfully',
 }

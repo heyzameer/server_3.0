@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { injectable, inject } from 'tsyringe';
-import { IPackageService } from '../services/PackageService';
+import { IPackageService } from '../interfaces/IService/IPackageService';
 import { HttpStatus } from '../enums/HttpStatus';
 import { sendSuccess } from '../utils/response';
 import { asyncHandler } from '../utils/errorHandler';
@@ -25,7 +25,8 @@ export class PackageController {
 
     getPackageById = asyncHandler(async (req: Request, res: Response) => {
         const { packageId } = req.params;
-        const pkg = await this.packageService.getPackageById(packageId);
+        const { checkIn } = req.query;
+        const pkg = await this.packageService.getPackageById(packageId, checkIn as string);
         sendSuccess(res, 'Package fetched successfully', pkg, HttpStatus.OK);
     });
 
