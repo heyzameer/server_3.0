@@ -23,7 +23,7 @@ export class LocationRepository extends BaseRepository<ILocation> implements ILo
     additionalData?: Partial<ILocation>
   ): Promise<ILocation> {
     const locationData: Partial<ILocation> = {
-      userId: new mongoose.Types.ObjectId(userId),
+      userId: new mongoose.Types.ObjectId(userId) as any,
       coordinates,
       ...additionalData,
     };

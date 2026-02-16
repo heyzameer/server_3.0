@@ -24,6 +24,7 @@ export enum ResponseMessages {
     VALID_PARTNER_NOT_FOUND = 'Valid partner not found',
     ONLINE_STATUS_UPDATE_FAILED = 'Failed to update online status',
     PARTNER_NOT_FOUND = 'Partner not found',
+    PROPERTY_NOT_FOUND = 'Property not found',
     // Unified PARTNER_NOT_FOUND below
     // DELIVERY_PARTNER_NOT_FOUND = 'Delivery partner not found',
     DOCUMENTS_VERIFY_FAILED = 'Failed to verify documents',
@@ -102,4 +103,13 @@ export enum ResponseMessages {
     NOT_FOUND = 'Resource not found',
     AUTH_REQUIRED = 'Authentication required',
     FILE_UPLOAD_FAILED = 'File upload failed or no files provided',
+
+    // Wishlist Messages
+    WISHLIST_RETRIEVED = 'Wishlist retrieved successfully',
+    WISHLIST_TOGGLED = 'Wishlist updated successfully',
+    BOOKING_NOT_FOUND = 'Booking not found',
+    BOOKINGS_RETRIEVED = 'Bookings retrieved successfully',
+    BOOKING_RETRIEVED = 'Booking retrieved successfully',
+    BOOKING_UPDATED = 'Booking updated successfully',
+    BOOKING_DELETED = 'Booking deleted successfully',
 }

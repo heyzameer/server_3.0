@@ -1,7 +1,7 @@
 import { injectable, inject } from 'tsyringe';
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import { asyncHandler } from '../utils/errorHandler';
-import { sendSuccess, sendError } from '../utils/response';
+import { sendSuccess } from '../utils/response';
 import { IPropertyService } from '../interfaces/IService/IPropertyService';
 import { HttpStatus } from '../enums/HttpStatus';
 import { ResponseMessages } from '../enums/ResponseMessages';
@@ -81,9 +81,21 @@ export class PropertyController {
 
     uploadPropertyImages = asyncHandler(async (req: Request, res: Response) => {
         const partnerId = req.user!.userId;
-        const fileUrls = this.extractFileUrls(req);
-        // Special case for images array and coverImage
-        const images = (req.files as any)?.images?.map((f: any) => f.location) || [];
+
+        // Extract raw files and metadata
+        const rawFiles = (req.files as any)?.images || [];
+        const metadata = req.body.imageMetadata ? JSON.parse(req.body.imageMetadata) : [];
+
+        // Construct images array with new structure
+        const images = rawFiles.map((file: any, index: number) => {
+            const meta = metadata[index] || {};
+            return {
+                url: file.location,
+                category: meta.category || 'Others',
+                label: meta.label || ''
+            };
+        });
+
         const coverImage = (req.files as any)?.coverImage?.[0]?.location;
 
         const property = await this.propertyService.uploadPropertyImages(req.params.id, partnerId, { images, coverImage });

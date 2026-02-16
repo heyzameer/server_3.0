@@ -78,7 +78,10 @@ const userSchema = new Schema<IUser>(
       licenseNumber: { type: String },
       licenseExpiry: { type: Date }
     },
-
+    wishlist: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Property'
+    }],
   },
   {
     timestamps: true,

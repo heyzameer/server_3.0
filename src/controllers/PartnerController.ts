@@ -6,7 +6,6 @@ import { sendError, sendSuccess } from '../utils/response';
 import { getS3FileUrl } from '../middleware/upload';
 import { IPartnerService } from '../interfaces/IService/IPartnerService';
 import {
-  RegisterPartnerReqDto,
   PartnerLoginOtpDto,
   PartnerVerifyOtpDto
 } from '../dtos/partner.dto';

@@ -29,10 +29,36 @@ router.get('/version', (req: Request, res: Response) => {
   });
 });
 
+import roomRoutes from './room.routes';
+import { mealPlanRoutes } from './mealPlan.routes';
+import { activityRoutes } from './activityRoutes';
+import { packageRoutes } from './packageRoutes';
+import bookingRoutes from './booking.routes';
+import destinationRoutes from './destination.routes';
+import uploadRoutes from './uploadRoutes';
+import paymentRoutes from './paymentRoutes';
+import reviewRoutes from './review.routes';
+
 // Mount module routes
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/partner', PartnerRoutes);
+router.use('/bookings', bookingRoutes);
+router.use('/destinations', destinationRoutes);
+router.use('/upload', uploadRoutes);
+router.use('/payments', paymentRoutes);
+router.use('/reviews', reviewRoutes);
+
+// Mount specific property sub-routes first to avoid conflicts
+router.use('/properties/:propertyId/rooms', roomRoutes);
+router.use('/rooms', roomRoutes);
+router.use('/properties/:propertyId/meal-plans', mealPlanRoutes);
+router.use('/properties/:propertyId/activities', activityRoutes);
+router.use('/activities', activityRoutes);
+router.use('/properties/:propertyId/packages', packageRoutes);
+router.use('/packages', packageRoutes);
+
+// Mount generic property routes last
 router.use('/properties', propertyRoutes);
 router.use('/admin', adminRoutes);
 

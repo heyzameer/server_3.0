@@ -1,8 +1,10 @@
 import { injectable, inject } from 'tsyringe';
+import mongoose from 'mongoose';
 import { IPropertyRepository } from '../interfaces/IRepository/IPropertyRepository';
 import { IPartnerRepository } from '../interfaces/IRepository/IPartnerRepository';
 import { IPropertyService } from '../interfaces/IService/IPropertyService';
 import { IProperty } from '../interfaces/IModel/IProperty';
+import { IRoom } from '../interfaces/IModel/IRoom';
 import { createError } from '../utils/errorHandler';
 import { HttpStatus } from '../enums/HttpStatus';
 import { ResponseMessages } from '../enums/ResponseMessages';
@@ -10,13 +12,18 @@ import { logger } from '../utils/logger';
 import { PaginatedResult, PaginationOptions } from '../types';
 import { IEmailService } from '../interfaces/IService/IEmailService';
 import { getSignedFileUrl } from '../middleware/upload';
+import { IRoomRepository } from '../interfaces/IRepository/IRoomRepository';
+import { MealPlan } from '../models/MealPlan';
+import { Activity } from '../models/Activity';
+import { Package } from '../models/Package';
 
 @injectable()
 export class PropertyService implements IPropertyService {
     constructor(
         @inject('PropertyRepository') private propertyRepository: IPropertyRepository,
         @inject('PartnerRepository') private partnerRepository: IPartnerRepository,
-        @inject('EmailService') private emailService: IEmailService
+        @inject('EmailService') private emailService: IEmailService,
+        @inject('RoomRepository') private roomRepository: IRoomRepository
     ) { }
 
     async createProperty(partnerId: string, propertyData: any): Promise<IProperty> {
@@ -51,7 +58,7 @@ export class PropertyService implements IPropertyService {
     }
 
     async registerPropertyDetails(id: string, partnerId: string, details: any): Promise<IProperty> {
-        const property = await this.verifyOwnership(id, partnerId);
+        await this.verifyOwnership(id, partnerId);
         const updated = await this.propertyRepository.update(id, {
             ...details,
             propertyDetailsCompleted: true
@@ -101,6 +108,10 @@ export class PropertyService implements IPropertyService {
 
     async uploadPropertyImages(id: string, partnerId: string, files: any): Promise<IProperty> {
         await this.verifyOwnership(id, partnerId);
+
+        // files.images should now be an array of objects { url, category, label }
+        // We assume the controller constructs this array
+
         const updated = await this.propertyRepository.update(id, {
             images: files.images,
             coverImage: files.coverImage,
@@ -162,13 +173,25 @@ export class PropertyService implements IPropertyService {
         return updated;
     }
 
+    async getProperty(id: string): Promise<IProperty> {
+        let prop;
+
+        if (mongoose.Types.ObjectId.isValid(id)) {
+            prop = await this.propertyRepository.findById(id);
+        } else {
+            prop = await this.propertyRepository.findByPropertyId(id);
+        }
+
+        if (!prop) {
+            throw createError(ResponseMessages.PROPERTY_NOT_FOUND, HttpStatus.NOT_FOUND);
+        }
+
+        return prop;
+    }
+
     async getPropertyById(id: string): Promise<IProperty> {
         logger.info(`PropertyService: Fetching property ${id}`);
-        const property = await this.propertyRepository.findById(id);
-        if (!property) {
-            logger.error(`PropertyService: Property ${id} not found`);
-            throw createError('Property not found', HttpStatus.NOT_FOUND);
-        }
+        const property = await this.getProperty(id); // Use the new getProperty method
         logger.info(`PropertyService: Property ${id} found, injecting signed URLs`);
         return this.injectSignedUrls(property);
     }
@@ -188,20 +211,50 @@ export class PropertyService implements IPropertyService {
         }
 
         // Inject signed URLs
-        const signedProperty = await this.injectSignedUrls(property);
+        let signedProperty = await this.injectSignedUrls(property);
+
+        // Inject Base Price
+        signedProperty = await this.injectMinPrice(signedProperty);
+
+        // Inject Meal Plans and Activities
+        const mealPlans = await MealPlan.find({ propertyId: id, isActive: true });
+        const activities = await Activity.find({ propertyId: id, isActive: true });
+        const packages = await Package.find({ propertyId: id, isActive: true })
+            .populate('mealPlanId', 'name')
+            .populate('includedActivities.activityId', 'name');
 
         // Convert to object to safely delete sensitive fields if needed, 
         // though strictly typing might make this tricky. 
         // For now, we rely on the controller or assumes frontend ignores extra fields.
         // But optimally we should set sensitive fields to undefined/null.
-
-        // Note: The caller expects IProperty, so we return it as is, 
-        // trusting the frontend not to display sensitive data, 
-        // or we could explicitly nullify them here if the Object is mutable.
         const propObj = signedProperty['toObject'] ? (signedProperty as any).toObject() : signedProperty;
         delete propObj.ownershipDocuments;
         delete propObj.taxDocuments;
         delete propObj.bankingDetails;
+
+        propObj.mealPlans = mealPlans;
+        propObj.activities = await Promise.all(activities.map(async (activity) => {
+            const activityObj = (activity as any).toObject ? (activity as any).toObject() : activity;
+            if (activityObj.images && activityObj.images.length > 0) {
+                activityObj.images = await Promise.all(activityObj.images.map(async (img: any) => {
+                    if (typeof img === 'string') return await getSignedFileUrl(img);
+                    if (img && img.url) return await getSignedFileUrl(img.url);
+                    return img;
+                }));
+            }
+            return activityObj;
+        }));
+        propObj.packages = await Promise.all(packages.map(async (pkg) => {
+            const pkgObj = (pkg as any).toObject ? (pkg as any).toObject() : pkg;
+            if (pkgObj.images && pkgObj.images.length > 0) {
+                pkgObj.images = await Promise.all(pkgObj.images.map(async (img: any) => {
+                    if (typeof img === 'string') return await getSignedFileUrl(img);
+                    if (img && img.url) return await getSignedFileUrl(img.url);
+                    return img;
+                }));
+            }
+            return pkgObj;
+        }));
 
         return propObj;
     }
@@ -209,10 +262,15 @@ export class PropertyService implements IPropertyService {
     async getPropertiesByPartnerId(partnerId: string, pagination?: PaginationOptions): Promise<PaginatedResult<IProperty> | IProperty[]> {
         const result = await this.propertyRepository.findByPartnerId(partnerId, pagination);
 
+        const inject = async (prop: IProperty) => {
+            const signed = await this.injectSignedUrls(prop);
+            return this.injectMinPrice(signed);
+        };
+
         if (Array.isArray(result)) {
-            return Promise.all(result.map(prop => this.injectSignedUrls(prop)));
+            return Promise.all(result.map(inject));
         } else {
-            const properties = await Promise.all(result.data.map(prop => this.injectSignedUrls(prop)));
+            const properties = await Promise.all(result.data.map(inject));
             return { ...result, data: properties };
         }
     }
@@ -250,7 +308,10 @@ export class PropertyService implements IPropertyService {
             };
             const pageOptions = pagination || { page: 1, limit: 12 };
             const result = await this.propertyRepository.findAllWithFilters(pageOptions, publicFilters);
-            const properties = await Promise.all(result.data.map(prop => this.injectSignedUrls(prop)));
+            const properties = await Promise.all(result.data.map(async (prop) => {
+                const signed = await this.injectSignedUrls(prop);
+                return this.injectMinPrice(signed);
+            }));
             return { ...result, data: properties };
         } catch (error) {
             logger.error('Failed to fetch public properties:', error);
@@ -259,13 +320,26 @@ export class PropertyService implements IPropertyService {
     }
 
     async searchProperties(query: any, pagination?: PaginationOptions): Promise<PaginatedResult<IProperty> | IProperty[]> {
-        if (query.city) {
-            return this.propertyRepository.findByCity(query.city, pagination);
-        }
+        let results: PaginatedResult<IProperty> | IProperty[];
+
         if (query.longitude && query.latitude) {
-            return this.propertyRepository.findNear(query.longitude, query.latitude, query.maxDistance || 10000);
+            results = await this.propertyRepository.findNear(query.longitude, query.latitude, query.maxDistance || 10000);
+        } else {
+            // Use unified filter search for city, destinationId, and text search
+            results = await this.propertyRepository.findAllWithFilters(pagination || { page: 1, limit: 12 }, query);
         }
-        return this.propertyRepository.findAll(pagination);
+
+        const inject = async (prop: IProperty) => {
+            const signed = await this.injectSignedUrls(prop);
+            return this.injectMinPrice(signed);
+        };
+
+        if (Array.isArray(results)) {
+            return Promise.all(results.map(inject));
+        } else {
+            const properties = await Promise.all(results.data.map(inject));
+            return { ...results, data: properties };
+        }
     }
 
     async getAllProperties(pagination: PaginationOptions, filters?: any): Promise<PaginatedResult<IProperty>> {
@@ -388,7 +462,7 @@ export class PropertyService implements IPropertyService {
         return 'PROP' + Date.now().toString().slice(-8) + Math.floor(Math.random() * 100).toString().padStart(2, '0');
     }
 
-    private async injectSignedUrls(property: IProperty): Promise<IProperty> {
+    public async injectSignedUrls(property: any): Promise<any> {
         const prop = property.toObject ? property.toObject() : property;
 
         try {
@@ -397,7 +471,18 @@ export class PropertyService implements IPropertyService {
             }
 
             if (prop.images && prop.images.length > 0) {
-                prop.images = await Promise.all(prop.images.map((img: string) => getSignedFileUrl(img)));
+                // Check if images are strings (old format) or objects (new format)
+                prop.images = await Promise.all(prop.images.map(async (img: any) => {
+                    if (typeof img === 'string') {
+                        // Migration fallback or unexpected string
+                        const signed = await getSignedFileUrl(img);
+                        return { url: signed, category: 'Others' };
+                    } else {
+                        // New format: { url, category, label }
+                        img.url = await getSignedFileUrl(img.url);
+                        return img;
+                    }
+                }));
             }
 
             if (prop.ownershipDocuments) {
@@ -421,6 +506,30 @@ export class PropertyService implements IPropertyService {
             logger.error(`Error injecting signed URLs for property ${prop._id}:`, error);
         }
 
+        return prop as IProperty;
+    }
+
+    public async injectMinPrice(property: any): Promise<any> {
+        const prop = property.toObject ? property.toObject() : property;
+        try {
+            const rooms = await this.roomRepository.findByPropertyId(prop._id.toString());
+            if (rooms && rooms.length > 0) {
+                // Find minimum price among active rooms
+                const minPrice = rooms.reduce((min: number, room: IRoom) => {
+                    return (room.basePricePerNight < min) ? room.basePricePerNight : min;
+                }, Infinity);
+
+                prop.basePrice = (minPrice === Infinity) ? 0 : minPrice;
+                prop.pricePerNight = prop.basePrice;
+            } else {
+                prop.basePrice = 0;
+                prop.pricePerNight = 0;
+            }
+        } catch (error) {
+            logger.error(`Error injecting min price for property ${prop._id}:`, error);
+            prop.basePrice = 0;
+            prop.pricePerNight = 0;
+        }
         return prop as IProperty;
     }
 }

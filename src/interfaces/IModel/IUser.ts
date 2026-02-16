@@ -35,6 +35,7 @@ export interface IUser extends Document {
   walletId?: Types.ObjectId;
 
   partnerInfo?: IPartnerInfo;
+  wishlist: Types.ObjectId[];
 }
 
 export interface IUserModel extends Model<IUser> {

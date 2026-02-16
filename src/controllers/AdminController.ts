@@ -1,6 +1,7 @@
 import { IUserService } from "../interfaces/IService/IUserService";
 import { IAuthService } from "../interfaces/IService/IAuthService";
 import { IPropertyService } from "../interfaces/IService/IPropertyService";
+import { IBookingService } from '../interfaces/IService/IBookingService';
 import { asyncHandler } from "../utils/errorHandler";
 import { sendSuccess } from "../utils/response";
 import { Request, Response, NextFunction } from "express";
@@ -8,6 +9,9 @@ import { inject, injectable } from "tsyringe";
 import { IPartnerService } from "../interfaces/IService/IPartnerService";
 import config from "../config";
 import { ResponseMessages } from "../enums/ResponseMessages";
+import { Booking } from "../models/Booking";
+import { Property } from "../models/Property";
+import { Partner } from "../models/Partner";
 
 /**
  * Controller for admin-related operations.
@@ -19,7 +23,8 @@ export class AdminController {
     @inject("AuthService") private authService: IAuthService,
     @inject("UserService") private userService: IUserService,
     @inject("PartnerService") private partnerService: IPartnerService,
-    @inject("PropertyService") private propertyService: IPropertyService
+    @inject("PropertyService") private propertyService: IPropertyService,
+    @inject("BookingService") private bookingService: IBookingService
   ) {
     console.log("AdminController initialized");
   }
@@ -333,7 +338,7 @@ export class AdminController {
     async (req: Request, res: Response, _next: NextFunction) => {
       const propertyId = req.params.id;
       const updateData = req.body;
-      console.log(`[AdminController] updateProperty hit for id: ${propertyId}`, updateData);
+      console.log(`[AdminController] updateProperty hit for id: ${propertyId} `, updateData);
 
       // Perform the update
       await this.propertyService.adminUpdateProperty(propertyId, updateData);
@@ -347,6 +352,202 @@ export class AdminController {
       }
 
       sendSuccess(res, ResponseMessages.PROPERTY_UPDATED, { property });
+    }
+  );
+
+  /**
+   * Get all bookings with filtering.
+   */
+  getAllBookings = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction) => {
+      const { status, bookingType } = req.query;
+      const filter: any = {};
+      if (status) filter.status = status;
+      if (bookingType) filter.bookingType = bookingType;
+
+      const bookings = await this.bookingService.getAllBookings(filter);
+      sendSuccess(res, ResponseMessages.BOOKINGS_RETRIEVED || 'Bookings retrieved successfully', { bookings });
+    }
+  );
+
+  /**
+   * Get booking by ID.
+   */
+  getBookingById = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction) => {
+      const { id } = req.params;
+      const booking = await this.bookingService.getBookingById(id);
+      sendSuccess(res, ResponseMessages.BOOKING_RETRIEVED || 'Booking retrieved successfully', { booking });
+    }
+  );
+
+  /**
+   * Update booking.
+   */
+  updateBooking = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction) => {
+      const { id } = req.params;
+      const updateData = req.body;
+      const booking = await this.bookingService.updateBooking(id, updateData);
+      sendSuccess(res, ResponseMessages.BOOKING_UPDATED || 'Booking updated successfully', { booking });
+    }
+  );
+
+  /**
+   * Delete booking.
+   */
+  deleteBooking = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction) => {
+      const { id } = req.params;
+      await this.bookingService.deleteBooking(id);
+      sendSuccess(res, ResponseMessages.BOOKING_DELETED || 'Booking deleted successfully');
+    }
+  );
+
+  /**
+   * Get dashboard statistics for the admin panel.
+   */
+  getDashboardStats = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction) => {
+      // 1. Get Basic Counts
+      const totalBookings = await Booking.countDocuments();
+      const totalProperties = await Property.countDocuments();
+      const totalPartners = await Partner.countDocuments();
+
+      // 2. Active Guests (Unique users with non-cancelled bookings)
+      const activeGuestsResult = await Booking.distinct('userId', {
+        status: { $in: ['confirmed', 'checked_in', 'checked_out', 'completed'] }
+      });
+      const activeGuests = activeGuestsResult.length;
+
+      // 3. Recent Bookings (Top 5)
+      const recentBookings = await Booking.find()
+        .populate('userId', 'fullName')
+        .populate('propertyId', 'propertyName')
+        .sort({ createdAt: -1 })
+        .limit(5);
+
+      // 4. Pending Approvals
+      const pendingProperties = await Property.find({
+        verificationStatus: 'pending',
+        onboardingCompleted: true
+      })
+        .populate('partnerId', 'fullName')
+        .limit(3);
+
+      const pendingPartners = await Partner.find({
+        'personalDocuments.aadharStatus': 'manual_review'
+      }).limit(3);
+
+      const pendingBookings = await Booking.find({
+        status: { $in: ['payment_completed', 'confirmed'] },
+        partnerApprovalStatus: 'pending'
+      })
+        .populate('propertyId', 'propertyName')
+        .populate('userId', 'fullName')
+        .limit(3);
+
+      const pendingRefunds = await Booking.find({
+        refundStatus: 'requested'
+      })
+        .populate('userId', 'fullName')
+        .limit(3);
+
+      // 5. Calculate Trends (Simple implementation: current month vs last month)
+      const now = new Date();
+      const firstDayCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+      const [currentMonthBookings, lastMonthBookings] = await Promise.all([
+        Booking.countDocuments({ createdAt: { $gte: firstDayCurrentMonth } }),
+        Booking.countDocuments({ createdAt: { $gte: firstDayLastMonth, $lt: firstDayCurrentMonth } })
+      ]);
+
+      const bookingTrend = lastMonthBookings === 0 ? '+100%' :
+        `${(currentMonthBookings / lastMonthBookings * 100).toFixed(0)}% from last month`;
+
+      // 6. Growth Chart Data
+      const monthCount = parseInt(req.query.months as string) || 6;
+      const growthData = [];
+      for (let i = monthCount - 1; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
+
+        const count = await Booking.countDocuments({
+          createdAt: { $gte: monthStart, $lte: monthEnd }
+        });
+
+        growthData.push({
+          name: d.toLocaleString('default', { month: 'short' }),
+          bookings: count,
+          revenue: count * 5000 // Mock revenue for visualization if needed
+        });
+      }
+
+      sendSuccess(res, 'Dashboard stats retrieved successfully', {
+        stats: [
+          {
+            title: 'Total Bookings',
+            count: totalBookings,
+            trend: bookingTrend,
+          },
+          {
+            title: 'Active Guests',
+            count: activeGuests,
+            trend: '+5% from last month', // Static for now or implement similar to bookings
+          },
+          {
+            title: 'Properties Listed',
+            count: totalProperties,
+            trend: `+ ${await Property.countDocuments({ createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } })} new this week`,
+          },
+          {
+            title: 'Property Owners',
+            count: totalPartners,
+            trend: `+ ${await Partner.countDocuments({ 'personalDocuments.aadharStatus': 'manual_review' })} pending approval`,
+          },
+        ],
+        growthData, // New field for chart
+        recentBookings: recentBookings.map((b: any) => ({
+          id: b._id,
+          title: b.propertyId?.propertyName || 'Property Deleted',
+          subtitle: `Booked by ${b.userId?.fullName || 'Guest'} `,
+          status: b.status.charAt(0).toUpperCase() + b.status.slice(1).replace('_', ' '),
+          statusColor: b.status === 'confirmed' || b.status === 'completed' ? 'bg-green-100 text-green-700' :
+            b.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+        })),
+        pendingApprovals: [
+          ...pendingProperties.map((p: any) => ({
+            id: p._id,
+            title: p.propertyName,
+            subtitle: `Listed by ${p.partnerId?.fullName || 'Unknown'} `,
+            status: 'Property Pending',
+            statusColor: 'bg-orange-100 text-orange-700'
+          })),
+          ...pendingPartners.map((p: any) => ({
+            id: p._id,
+            title: p.fullName,
+            subtitle: 'Verification Pending',
+            status: 'Owner Pending',
+            statusColor: 'bg-yellow-100 text-yellow-700'
+          })),
+          ...pendingBookings.map((b: any) => ({
+            id: b._id,
+            title: b.propertyId?.propertyName || 'Booking',
+            subtitle: `By ${b.userId?.fullName || 'Guest'} `,
+            status: 'Booking Pending',
+            statusColor: 'bg-blue-100 text-blue-700'
+          })),
+          ...pendingRefunds.map((b: any) => ({
+            id: b._id,
+            title: `Refund: ${b.bookingId || 'Request'} `,
+            subtitle: `For ${b.userId?.fullName || 'Guest'} `,
+            status: 'Refund Requested',
+            statusColor: 'bg-red-100 text-red-700'
+          }))
+        ].slice(0, 5)
+      });
     }
   );
 }

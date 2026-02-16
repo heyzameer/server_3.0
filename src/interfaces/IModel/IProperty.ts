@@ -3,6 +3,7 @@ import { Document, Types } from 'mongoose';
 export interface IProperty extends Document {
     propertyId: string;
     partnerId: Types.ObjectId;
+    destinationId?: Types.ObjectId;
     propertyName: string;
     propertyType: 'hotel' | 'homestay' | 'apartment' | 'resort' | 'villa';
     description: string;
@@ -49,14 +50,21 @@ export interface IProperty extends Document {
     };
 
     // Media
-    images: string[];
+    images: Array<{
+        url: string;
+        category: 'Facade' | 'Entrance' | 'Living Room' | 'Bedroom' | 'Bathroom' | 'Kitchen' | 'Dining' | 'Terrace' | 'Parking' | 'Pool' | 'Washroom' | 'Others';
+        label?: string;
+    }>;
     coverImage?: string;
 
-    // Pricing & Capacity
-    pricePerNight: number;
-    maxGuests: number;
-    totalRooms: number;
-    availableRooms: number;
+    // Pricing & Capacity (Moved to Room Model, but injected for response)
+    basePrice?: number; // Injected field
+    pricePerNight?: number; // Legacy/Frontend compatibility
+    mealPlans?: any[]; // Injected field
+    activities?: any[]; // Injected field
+    // maxGuests: number;
+    // totalRooms: number;
+    // availableRooms: number;
 
     // Status
     isActive: boolean;

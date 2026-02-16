@@ -1,4 +1,3 @@
-// src/services/PartnerService.ts
 import { injectable, inject } from 'tsyringe';
 import { IPartnerRepository } from '../interfaces/IRepository/IPartnerRepository';
 import { IOTPRepository } from '../interfaces/IRepository/IOTPRepository';
@@ -18,7 +17,6 @@ import { HttpStatus } from '../enums/HttpStatus';
 import { encrypt, decrypt } from '../utils/encryption';
 import { ResponseMessages } from '../enums/ResponseMessages';
 import { SocketService } from './SocketService';
-import { IProperty } from '../interfaces/IModel/IProperty';
 import { IPropertyRepository } from '../interfaces/IRepository/IPropertyRepository';
 
 /**
@@ -47,7 +45,7 @@ export class PartnerService implements IPartnerService {
     });
 
     // Log which OCR service is being used
-    logger.info(`🔧 OCR Service: ${config.useGeminiOCR ? 'Gemini AI' : 'Tesseract'}`);
+    logger.info(`🔧 OCR Service: ${config.useGeminiOCR ? 'Gemini AI' : 'Tesseract'} `);
   }
 
   /**
@@ -91,7 +89,7 @@ export class PartnerService implements IPartnerService {
       const accessToken = this.generateAccessToken(partner);
       const refreshToken = this.generateRefreshToken(partner);
 
-      logger.info(`Partner registered successfully: ${partner.email}`);
+      logger.info(`Partner registered successfully: ${partner.email} `);
 
       return {
         partner,
@@ -141,23 +139,23 @@ export class PartnerService implements IPartnerService {
       // Validate S3 URLs are properly formatted (only for newly uploaded ones)
       for (const [field, url] of Object.entries(fileUrls)) {
         if (url && (!url.startsWith('https://') || !url.includes('s3'))) {
-          logger.error(`Invalid S3 URL for ${field}: ${url}`);
+          logger.error(`Invalid S3 URL for ${field}: ${url} `);
           throw createError(
-            `Invalid file URL for ${field}. Upload may have failed.`,
+            `Invalid file URL for ${field}.Upload may have failed.`,
             HttpStatus.BAD_REQUEST
           );
         }
       }
 
-      logger.info(`✅ All files validated for partner: ${partnerId}`);
-      logger.debug(`Final merged File URLs: ${JSON.stringify(finalFileUrls, null, 2)}`);
+      logger.info(`✅ All files validated for partner: ${partnerId} `);
+      logger.debug(`Final merged File URLs: ${JSON.stringify(finalFileUrls, null, 2)} `);
 
       // 1. Trigger OCR extraction
       let aadharExtractedData = null;
       let ocrError = null;
 
       try {
-        logger.info(`🔍 Extracting Aadhaar data for partner: ${partner.email}`);
+        logger.info(`🔍 Extracting Aadhaar data for partner: ${partner.email} `);
         aadharExtractedData = await this.ocrService.extractAadharData(
           finalFileUrls.aadharFront!,
           finalFileUrls.aadharBack!
@@ -172,7 +170,7 @@ export class PartnerService implements IPartnerService {
       } catch (error: any) {
         ocrError = error;
         const errorMsg = error.message || 'Unknown OCR error';
-        logger.error(`❌ OCR extraction failed: ${errorMsg}`);
+        logger.error(`❌ OCR extraction failed: ${errorMsg} `);
         // Continue with upload but mark for manual review
       }
 
@@ -273,8 +271,8 @@ export class PartnerService implements IPartnerService {
       );
 
       await this.emailService.sendOtpEmail(email, otpCode);
-      console.log(`Sent OTP ${otpCode} to email ${email}`); // For debugging purposes only
-      logger.info(`Login OTP generated for partner: ${partner.email}`);
+      console.log(`Sent OTP ${otpCode} to email ${email} `); // For debugging purposes only
+      logger.info(`Login OTP generated for partner: ${partner.email} `);
 
       return { message: 'OTP sent successfully to your email' };
     } catch (error) {
@@ -317,7 +315,7 @@ export class PartnerService implements IPartnerService {
       const refreshToken = this.generateRefreshToken(partner);
       const verificationStatus = await this.getVerificationStatus(partner._id.toString());
 
-      logger.info(`Partner logged in successfully: ${partner.email}`);
+      logger.info(`Partner logged in successfully: ${partner.email} `);
 
       return {
         user: {
@@ -432,7 +430,7 @@ export class PartnerService implements IPartnerService {
         throw createError(ResponseMessages.PARTNER_EMAIL_DOES_NOT_EXIST, HttpStatus.NOT_FOUND);
       }
       await this.emailService.sendCustomEmail(email, subject, message);
-      logger.info(`Email sent to partner: ${email}`);
+      logger.info(`Email sent to partner: ${email} `);
     } catch (error) {
       logger.error('Failed to send email to partner:', error);
       throw error;
@@ -446,7 +444,7 @@ export class PartnerService implements IPartnerService {
     const prefix = 'PRT';
     const timestamp = Date.now().toString().slice(-6);
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    return `${prefix}${timestamp}${random}`;
+    return `${prefix}${timestamp}${random} `;
   }
 
   /**
@@ -515,7 +513,7 @@ export class PartnerService implements IPartnerService {
           if (rejectionReason) updateData['bankingDetails.rejectionReason'] = rejectionReason;
           break;
         default:
-          throw createError(`Invalid document type: ${documentType}`, HttpStatus.BAD_REQUEST);
+          throw createError(`Invalid document type: ${documentType} `, HttpStatus.BAD_REQUEST);
       }
 
       await this.partnerRepository.updatePartnerStatus(partnerId, updateData);
@@ -540,10 +538,10 @@ export class PartnerService implements IPartnerService {
           this.socketService?.sendNotificationToUser(partnerId, {
             type: 'system',
             title: 'Verification Rejected',
-            message: `Your verification failed: ${rejectionReason}. Please re-upload.`
+            message: `Your verification failed: ${rejectionReason}. Please re - upload.`
           });
           if (partner?.email) {
-            await this.emailService.sendCustomEmail(partner.email, 'Verification Failed', `Reason: ${rejectionReason}. Please re-upload documents.`);
+            await this.emailService.sendCustomEmail(partner.email, 'Verification Failed', `Reason: ${rejectionReason}. Please re - upload documents.`);
           }
         }
       }
@@ -754,7 +752,7 @@ export class PartnerService implements IPartnerService {
       });
 
       const signedUrl = await getSignedUrl(this.s3Client, command, { expiresIn: config.signedUrlExpiration });
-      logger.debug(`Generated signed URL for profile picture: ${partnerId}`);
+      logger.debug(`Generated signed URL for profile picture: ${partnerId} `);
 
       return signedUrl;
     } catch (error) {
@@ -795,7 +793,7 @@ export class PartnerService implements IPartnerService {
         urls.aadharBack = await getSignedUrl(this.s3Client, backCommand, { expiresIn: config.signedUrlExpiration });
       }
 
-      logger.debug(`Generated signed URLs for Aadhaar documents: ${partnerId}`);
+      logger.debug(`Generated signed URLs for Aadhaar documents: ${partnerId} `);
       return urls;
     } catch (error) {
       logger.error('Failed to generate Aadhaar document URLs:', error);
@@ -827,7 +825,7 @@ export class PartnerService implements IPartnerService {
           });
           partnerObj.profilePicture = await getSignedUrl(this.s3Client, command, { expiresIn: config.signedUrlExpiration });
         } catch (err) {
-          logger.warn(`Failed to sign profile picture for ${partnerObj._id}:`, err);
+          logger.warn(`Failed to sign profile picture for ${partnerObj._id}: `, err);
         }
       }
 
@@ -842,7 +840,7 @@ export class PartnerService implements IPartnerService {
             });
             partnerObj.personalDocuments.aadharFront = await getSignedUrl(this.s3Client, command, { expiresIn: config.signedUrlExpiration });
           } catch (err) {
-            logger.warn(`Failed to sign aadharFront for ${partnerObj._id}:`, err);
+            logger.warn(`Failed to sign aadharFront for ${partnerObj._id}: `, err);
           }
         }
         if (partnerObj.personalDocuments.aadharBack) {
@@ -854,7 +852,7 @@ export class PartnerService implements IPartnerService {
             });
             partnerObj.personalDocuments.aadharBack = await getSignedUrl(this.s3Client, command, { expiresIn: config.signedUrlExpiration });
           } catch (err) {
-            logger.warn(`Failed to sign aadharBack for ${partnerObj._id}:`, err);
+            logger.warn(`Failed to sign aadharBack for ${partnerObj._id}: `, err);
           }
         }
       }

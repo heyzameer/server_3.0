@@ -4,6 +4,7 @@ import { IProperty } from '../interfaces/IModel/IProperty';
 const propertySchema = new Schema<IProperty>({
     propertyId: { type: String, required: true, unique: true, index: true },
     partnerId: { type: Schema.Types.ObjectId, ref: 'Partner', required: true, index: true },
+    destinationId: { type: Schema.Types.ObjectId, ref: 'Destination', index: true },
     propertyName: { type: String, required: true, trim: true },
     propertyType: {
         type: String,
@@ -69,13 +70,22 @@ const propertySchema = new Schema<IProperty>({
         rejectionReason: { type: String }
     },
 
-    images: [{ type: String }],
+    images: [{
+        url: { type: String, required: true },
+        category: {
+            type: String,
+            required: true,
+            enum: ['Facade', 'Entrance', 'Living Room', 'Bedroom', 'Bathroom', 'Kitchen', 'Dining', 'Terrace', 'Parking', 'Pool', 'Washroom', 'Others'],
+            default: 'Others'
+        },
+        label: { type: String }
+    }],
     coverImage: { type: String },
 
-    pricePerNight: { type: Number, required: true },
-    maxGuests: { type: Number, required: true },
-    totalRooms: { type: Number, required: true },
-    availableRooms: { type: Number, required: true },
+    // pricePerNight: { type: Number, required: true }, // Moved to Room model
+    // maxGuests: { type: Number, required: true }, // Moved to Room model
+    // totalRooms: { type: Number, required: true }, // Moved to Room model
+    // availableRooms: { type: Number, required: true }, // Moved to Room model
 
     isActive: { type: Boolean, default: false, index: true },
     isVerified: { type: Boolean, default: false, index: true },

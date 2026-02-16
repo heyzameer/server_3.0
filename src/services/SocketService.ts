@@ -165,9 +165,7 @@ export class SocketService {
 
     try {
       // Update location in database
-      await this.locationRepository.updateUserLocation(userId, data.coordinates, {
-        heading: data.heading,
-        speed: data.speed,
+      await this.locationRepository.updateUserLocation(userId, { ...data.coordinates, heading: data.heading, speed: data.speed }, {
         isOnline: true,
         batteryLevel: data.batteryLevel,
         networkType: data.networkType,
