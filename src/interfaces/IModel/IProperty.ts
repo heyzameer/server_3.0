@@ -60,6 +60,8 @@ export interface IProperty extends Document {
     // Pricing & Capacity (Moved to Room Model, but injected for response)
     basePrice?: number; // Injected field
     pricePerNight?: number; // Legacy/Frontend compatibility
+    mealPlans?: any[]; // Injected field
+    activities?: any[]; // Injected field
     // maxGuests: number;
     // totalRooms: number;
     // availableRooms: number;

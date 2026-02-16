@@ -11,7 +11,7 @@ export class DestinationRepository extends BaseRepository<IDestination> implemen
     }
 
     async findBySlug(slug: string): Promise<IDestination | null> {
-        return this.findOne({ slug, isActive: true });
+        return this.findOne({ slug });
     }
 
     async findTrending(): Promise<IDestination[]> {

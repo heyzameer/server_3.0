@@ -18,7 +18,7 @@ passport.use(
                         fullName: profile.displayName,
                         email: profile.emails![0].value,
                         password: 'google-oauth-user',
-                        phone: '9876543210', // <--- ADD THIS LINE (Dummy phone)
+                        phone: (Date.now() + Math.floor(Math.random() * 1000).toString()).slice(0, 15), // Generate unique dummy phone
                         isVerified: true,
                         googleId: profile.id,
                         role: 'customer'

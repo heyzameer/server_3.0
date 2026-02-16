@@ -1,17 +1,12 @@
 import { injectable, inject } from 'tsyringe';
-import { IActivityRepository } from '../repositories/ActivityRepository';
+import { IActivityRepository } from '../interfaces/IRepository/IActivityRepository';
 import { IPropertyRepository } from '../interfaces/IRepository/IPropertyRepository';
 import { IActivity } from '../interfaces/IModel/IActivity';
+import { IActivityService } from '../interfaces/IService/IActivityService';
 import { AppError } from '../utils/errorHandler';
 import { HttpStatus } from '../enums/HttpStatus';
-
-export interface IActivityService {
-    createActivity(propertyId: string, data: any): Promise<IActivity>;
-    getActivitiesByProperty(propertyId: string): Promise<IActivity[]>;
-    getActivityById(id: string): Promise<IActivity>;
-    updateActivity(id: string, data: any): Promise<IActivity>;
-    deleteActivity(id: string): Promise<IActivity>;
-}
+import mongoose from 'mongoose';
+import { getSignedFileUrl } from '../middleware/upload';
 
 @injectable()
 export class ActivityService implements IActivityService {
@@ -21,7 +16,13 @@ export class ActivityService implements IActivityService {
     ) { }
 
     async createActivity(propertyId: string, data: any): Promise<IActivity> {
-        const property = await this.propertyRepository.findByPropertyId(propertyId);
+        let property;
+        if (mongoose.isValidObjectId(propertyId)) {
+            property = await this.propertyRepository.findById(propertyId);
+        } else {
+            property = await this.propertyRepository.findByPropertyId(propertyId);
+        }
+
         if (!property) {
             throw new AppError('Property not found', HttpStatus.NOT_FOUND);
         }
@@ -32,15 +33,23 @@ export class ActivityService implements IActivityService {
             activityType: 'property_based',
             isActive: true
         };
-        return await this.activityRepository.create(activityData);
+        const activity = await this.activityRepository.create(activityData);
+        return this.injectSignedUrls(activity);
     }
 
     async getActivitiesByProperty(propertyId: string): Promise<IActivity[]> {
-        const property = await this.propertyRepository.findByPropertyId(propertyId);
+        let property;
+        if (mongoose.isValidObjectId(propertyId)) {
+            property = await this.propertyRepository.findById(propertyId);
+        } else {
+            property = await this.propertyRepository.findByPropertyId(propertyId);
+        }
+
         if (!property) {
             throw new AppError('Property not found', HttpStatus.NOT_FOUND);
         }
-        return await this.activityRepository.findByPropertyId(property._id as any);
+        const activities = await this.activityRepository.findByPropertyId(property._id as any);
+        return Promise.all(activities.map(activity => this.injectSignedUrls(activity)));
     }
 
     async getActivityById(id: string): Promise<IActivity> {
@@ -48,7 +57,7 @@ export class ActivityService implements IActivityService {
         if (!activity) {
             throw new AppError('Activity not found', HttpStatus.NOT_FOUND);
         }
-        return activity;
+        return this.injectSignedUrls(activity);
     }
 
     async updateActivity(id: string, data: any): Promise<IActivity> {
@@ -56,7 +65,7 @@ export class ActivityService implements IActivityService {
         if (!activity) {
             throw new AppError('Activity not found', HttpStatus.NOT_FOUND);
         }
-        return activity;
+        return this.injectSignedUrls(activity);
     }
 
     async deleteActivity(id: string): Promise<IActivity> {
@@ -65,5 +74,18 @@ export class ActivityService implements IActivityService {
             throw new AppError('Activity not found', HttpStatus.NOT_FOUND);
         }
         return activity;
+    }
+
+    public async injectSignedUrls(activity: any): Promise<any> {
+        const activityObj = activity.toObject ? activity.toObject() : activity;
+
+        if (activityObj.images && activityObj.images.length > 0) {
+            activityObj.images = await Promise.all(activityObj.images.map(async (img: any) => {
+                if (typeof img === 'string') return await getSignedFileUrl(img);
+                if (img && img.url) return await getSignedFileUrl(img.url);
+                return img;
+            }));
+        }
+        return activityObj;
     }
 }

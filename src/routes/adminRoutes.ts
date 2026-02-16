@@ -16,6 +16,7 @@ router.post('/login', authLimiter, validate(loginSchema), adminController.adminL
 // // Protected routes
 router.use(authenticate);
 router.use(authorize([UserRole.ADMIN]));
+router.get('/stats', adminController.getDashboardStats);
 router.get('/users', adminController.getAllUsers);
 router.get('/users/:id', adminController.getUserById);
 router.put('/users/:id', adminController.updateUserStatus);
@@ -35,6 +36,11 @@ router.put('/properties/:id', adminController.updateProperty);
 router.get('/properties/:id/verification-details', adminController.getPropertyVerificationDetails);
 router.patch('/properties/:id/document-status', adminController.updatePropertyDocumentStatus);
 router.patch('/properties/:id/verify', adminController.verifyProperty);
+
+router.get('/bookings', adminController.getAllBookings);
+router.get('/bookings/:id', adminController.getBookingById);
+router.put('/bookings/:id', adminController.updateBooking);
+router.delete('/bookings/:id', adminController.deleteBooking);
 
 
 // router.get('/', authorize([UserRole.ADMIN]), pagination, validateQuery(getUsersSchema), userController.getAllUsers);

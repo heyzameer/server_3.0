@@ -1,168 +1,219 @@
-import * as yup from 'yup';
+import Joi from 'joi';
 
 /**
  * Validator for GET /admin/properties query parameters
  */
-export const getPropertiesQuerySchema = yup.object().shape({
-    page: yup
+export const getPropertiesQuerySchema = Joi.object({
+    page: Joi
         .number()
         .optional()
-        .typeError('Page must be a number')
-        .min(1, 'Page must be at least 1')
-        .default(1),
-    limit: yup
+        .min(1)
+        .default(1)
+        .messages({
+            'number.base': 'Page must be a number',
+            'number.min': 'Page must be at least 1'
+        }),
+    limit: Joi
         .number()
         .optional()
-        .typeError('Limit must be a number')
-        .min(1, 'Limit must be at least 1')
-        .max(100, 'Limit cannot exceed 100')
-        .default(10),
-    status: yup
+        .min(1)
+        .max(100)
+        .default(10)
+        .messages({
+            'number.base': 'Limit must be a number',
+            'number.min': 'Limit must be at least 1',
+            'number.max': 'Limit cannot exceed 100'
+        }),
+    status: Joi
         .string()
         .optional()
-        .oneOf(
-            ['pending', 'verified', 'rejected', 'suspended'],
-            'Status must be one of: pending, verified, rejected, suspended'
-        ),
-    verificationStatus: yup
+        .valid('pending', 'verified', 'rejected', 'suspended')
+        .messages({
+            'any.only': 'Status must be one of: pending, verified, rejected, suspended'
+        }),
+    verificationStatus: Joi
         .string()
         .optional()
-        .oneOf(
-            ['pending', 'verified', 'rejected', 'suspended'],
-            'Verification status must be one of: pending, verified, rejected, suspended'
-        ),
-    propertyType: yup
+        .valid('pending', 'verified', 'rejected', 'suspended')
+        .messages({
+            'any.only': 'Verification status must be one of: pending, verified, rejected, suspended'
+        }),
+    propertyType: Joi
         .string()
         .optional()
-        .oneOf(
-            ['hotel', 'homestay', 'apartment', 'resort', 'villa'],
-            'Property type must be one of: hotel, homestay, apartment, resort, villa'
-        ),
-    city: yup
+        .valid('hotel', 'homestay', 'apartment', 'resort', 'villa')
+        .messages({
+            'any.only': 'Property type must be one of: hotel, homestay, apartment, resort, villa'
+        }),
+    city: Joi
         .string()
         .optional()
-        .typeError('City must be a string')
         .trim()
-        .min(2, 'City name must be at least 2 characters')
-        .max(100, 'City name cannot exceed 100 characters'),
-    isActive: yup
+        .min(2)
+        .max(100)
+        .messages({
+            'string.base': 'City must be a string',
+            'string.min': 'City name must be at least 2 characters',
+            'string.max': 'City name cannot exceed 100 characters'
+        }),
+    isActive: Joi
         .boolean()
         .optional()
-        .typeError('isActive must be a boolean'),
-    isVerified: yup
+        .messages({
+            'boolean.base': 'isActive must be a boolean'
+        }),
+    isVerified: Joi
         .boolean()
         .optional()
-        .typeError('isVerified must be a boolean'),
-    search: yup
+        .messages({
+            'boolean.base': 'isVerified must be a boolean'
+        }),
+    search: Joi
         .string()
         .optional()
-        .typeError('Search must be a string')
         .trim()
-        .min(2, 'Search term must be at least 2 characters')
-        .max(200, 'Search term cannot exceed 200 characters'),
+        .min(2)
+        .max(200)
+        .messages({
+            'string.base': 'Search must be a string',
+            'string.min': 'Search term must be at least 2 characters',
+            'string.max': 'Search term cannot exceed 200 characters'
+        }),
 });
 
 /**
  * Validator for PATCH /admin/properties/:id/verify
  */
-export const verifyPropertySchema = yup.object().shape({
-    status: yup
+export const verifyPropertySchema = Joi.object({
+    status: Joi
         .string()
-        .required('Status is required')
-        .oneOf(
-            ['verified', 'rejected', 'suspended'],
-            'Status must be one of: verified, rejected, suspended'
-        ),
-    rejectionReason: yup
+        .required()
+        .valid('verified', 'rejected', 'suspended')
+        .messages({
+            'any.required': 'Status is required',
+            'any.only': 'Status must be one of: verified, rejected, suspended'
+        }),
+    rejectionReason: Joi
         .string()
         .when('status', {
             is: 'rejected',
-            then: (schema) =>
-                schema
-                    .required('Rejection reason is required when status is rejected')
-                    .min(10, 'Rejection reason must be at least 10 characters')
-                    .max(500, 'Rejection reason cannot exceed 500 characters'),
-            otherwise: (schema) => schema.optional(),
+            then: Joi.string()
+                .required()
+                .min(10)
+                .max(500)
+                .messages({
+                    'any.required': 'Rejection reason is required when status is rejected',
+                    'string.min': 'Rejection reason must be at least 10 characters',
+                    'string.max': 'Rejection reason cannot exceed 500 characters'
+                }),
+            otherwise: Joi.string().optional(),
         }),
 });
 
 /**
  * Validator for PATCH /admin/properties/:id/document-status
  */
-export const updatePropertyDocumentStatusSchema = yup.object().shape({
-    section: yup
+export const updatePropertyDocumentStatusSchema = Joi.object({
+    section: Joi
         .string()
-        .required('Section is required')
-        .oneOf(
-            ['ownership', 'tax', 'banking'],
-            'Section must be one of: ownership, tax, banking'
-        ),
-    status: yup
+        .required()
+        .valid('ownership', 'tax', 'banking')
+        .messages({
+            'any.required': 'Section is required',
+            'any.only': 'Section must be one of: ownership, tax, banking'
+        }),
+    status: Joi
         .string()
-        .required('Status is required')
-        .oneOf(
-            ['approved', 'rejected'],
-            'Status must be one of: approved, rejected'
-        ),
-    rejectionReason: yup
+        .required()
+        .valid('approved', 'rejected')
+        .messages({
+            'any.required': 'Status is required',
+            'any.only': 'Status must be one of: approved, rejected'
+        }),
+    rejectionReason: Joi
         .string()
         .when('status', {
             is: 'rejected',
-            then: (schema) =>
-                schema
-                    .required('Rejection reason is required when status is rejected')
-                    .min(10, 'Rejection reason must be at least 10 characters')
-                    .max(500, 'Rejection reason cannot exceed 500 characters'),
-            otherwise: (schema) => schema.optional(),
+            then: Joi.string()
+                .required()
+                .min(10)
+                .max(500)
+                .messages({
+                    'any.required': 'Rejection reason is required when status is rejected',
+                    'string.min': 'Rejection reason must be at least 10 characters',
+                    'string.max': 'Rejection reason cannot exceed 500 characters'
+                }),
+            otherwise: Joi.string().optional(),
         }),
 });
 
 /**
  * Validator for POST /partner/register-prop
  */
-export const propertyRegistrationSchema = yup.object().shape({
-    propertyName: yup.string().required('Property name is required'),
-    propertyType: yup
+export const propertyRegistrationSchema = Joi.object({
+    propertyName: Joi.string().required().messages({
+        'any.required': 'Property name is required'
+    }),
+    propertyType: Joi
         .string()
-        .required('Property type is required')
-        .oneOf(['hotel', 'homestay', 'apartment', 'resort', 'villa']),
-    description: yup
+        .required()
+        .valid('hotel', 'homestay', 'apartment', 'resort', 'villa')
+        .messages({
+            'any.required': 'Property type is required',
+            'any.only': 'Property type must be one of: hotel, homestay, apartment, resort, villa'
+        }),
+    description: Joi
         .string()
-        .required('Description is required')
-        .min(20, 'Description must be at least 20 characters'),
-    amenities: yup
+        .required()
+        .min(20)
+        .messages({
+            'any.required': 'Description is required',
+            'string.min': 'Description must be at least 20 characters'
+        }),
+    amenities: Joi
         .array()
-        .of(yup.string())
-        .required('Amenities are required')
-        .min(1, 'At least one amenity is required'),
-    address: yup
-        .object()
-        .shape({
-            street: yup.string().required('Street is required'),
-            city: yup.string().required('City is required'),
-            state: yup.string().required('State is required'),
-            pincode: yup.string().required('Pincode is required'),
-            country: yup.string().optional().default('India'),
+        .items(Joi.string())
+        .required()
+        .min(1)
+        .messages({
+            'any.required': 'Amenities are required',
+            'array.min': 'At least one amenity is required'
+        }),
+    address: Joi
+        .object({
+            street: Joi.string().required().messages({ 'any.required': 'Street is required' }),
+            city: Joi.string().required().messages({ 'any.required': 'City is required' }),
+            state: Joi.string().required().messages({ 'any.required': 'State is required' }),
+            pincode: Joi.string().required().messages({ 'any.required': 'Pincode is required' }),
+            country: Joi.string().optional().default('India'),
         })
-        .required('Address is required'),
-    location: yup
-        .object()
-        .shape({
-            type: yup.string().optional().oneOf(['Point']).default('Point'),
-            coordinates: yup.array().of(yup.number()).length(2).required('Coordinates are required'),
+        .required()
+        .messages({
+            'any.required': 'Address is required'
+        }),
+    location: Joi
+        .object({
+            type: Joi.string().optional().valid('Point').default('Point'),
+            coordinates: Joi.array().items(Joi.number()).length(2).required().messages({
+                'any.required': 'Coordinates are required',
+                'array.length': 'Coordinates must have exactly 2 values'
+            }),
         })
-        .required('Location is required'),
+        .required()
+        .messages({
+            'any.required': 'Location is required'
+        }),
     // pricePerNight, maxGuests, totalRooms, availableRooms moved to Room model
-    ownershipProof: yup.string().optional().url(),
-    ownerKYC: yup.string().optional().url(),
-    gstNumber: yup.string().optional(),
-    gstCertificate: yup.string().optional().url(),
-    panNumber: yup.string().optional(),
-    panCard: yup.string().optional().url(),
-    accountHolderName: yup.string().optional(),
-    accountNumber: yup.string().optional(),
-    ifscCode: yup.string().optional(),
-    upiId: yup.string().optional().email(),
-    images: yup.array().of(yup.string().url()).optional(),
-    coverImage: yup.string().optional().url(),
+    ownershipProof: Joi.string().optional().uri(),
+    ownerKYC: Joi.string().optional().uri(),
+    gstNumber: Joi.string().optional(),
+    gstCertificate: Joi.string().optional().uri(),
+    panNumber: Joi.string().optional(),
+    panCard: Joi.string().optional().uri(),
+    accountHolderName: Joi.string().optional(),
+    accountNumber: Joi.string().optional(),
+    ifscCode: Joi.string().optional(),
+    upiId: Joi.string().optional().email(),
+    images: Joi.array().items(Joi.string().uri()).optional(),
+    coverImage: Joi.string().optional().uri(),
 });

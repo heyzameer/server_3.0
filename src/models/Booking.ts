@@ -82,7 +82,7 @@ const bookingSchema = new Schema<IBooking>({
 
     status: {
         type: String,
-        enum: ['pending_payment', 'payment_completed', 'confirmed', 'rejected', 'checked_in', 'checked_out', 'cancelled'],
+        enum: ['pending_payment', 'payment_completed', 'confirmed', 'rejected', 'checked_in', 'checked_out', 'completed', 'cancelled'],
         default: 'pending_payment',
         index: true
     },
@@ -99,6 +99,18 @@ const bookingSchema = new Schema<IBooking>({
     rejectedAt: { type: Date },
 
     cancellationReason: { type: String },
+
+    // Refund workflow
+    refundStatus: {
+        type: String,
+        enum: ['not_requested', 'requested', 'approved', 'rejected', 'processed'],
+        default: 'not_requested',
+        index: true
+    },
+    refundAmount: { type: Number },
+    refundRequestedAt: { type: Date },
+    refundProcessedAt: { type: Date },
+    refundReason: { type: String },
 
     bookedAt: { type: Date, default: Date.now },
     confirmedAt: { type: Date },

@@ -21,7 +21,6 @@ router.get(
 
 router.get(
     '/:packageId',
-    authenticatePartner,
     packageController.getPackageById
 );
 

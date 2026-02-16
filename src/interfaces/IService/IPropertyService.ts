@@ -28,4 +28,8 @@ export interface IPropertyService {
     getOnboardingStatus(id: string): Promise<any>;
     verifyProperty(id: string, status: string, rejectionReason?: string): Promise<IProperty>;
     adminUpdateProperty(id: string, updateData: any): Promise<IProperty>;
+
+    // Utility methods for external services
+    injectSignedUrls(property: any): Promise<any>;
+    injectMinPrice(property: any): Promise<any>;
 }

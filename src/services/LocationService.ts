@@ -8,7 +8,6 @@ import { createError } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
 import { injectable, inject } from 'tsyringe';
 import { ILocationService } from '../interfaces/IService/ILocationService';
-import mongoose from 'mongoose';
 import { ILocationRepository } from '../interfaces/IRepository/ILocationRepository';
 import { IUserRepository } from '../interfaces/IRepository/IUserRepository';
 import { ILocation } from '../interfaces/IModel/ILocation';
@@ -52,14 +51,20 @@ export class LocationService implements ILocationService {
         throw createError(ResponseMessages.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
+      const mergedCoordinates = {
+        ...coordinates,
+        heading: additionalData?.heading,
+        speed: additionalData?.speed
+      };
+
       const location = await this.locationRepository.updateUserLocation(
         userId,
-        coordinates,
+        mergedCoordinates,
         additionalData ? {
-          ...additionalData,
+          isOnline: additionalData.isOnline,
+          batteryLevel: additionalData.batteryLevel,
+          networkType: additionalData.networkType,
           orderId: additionalData.orderId
-            ? new mongoose.Types.ObjectId(additionalData.orderId)
-            : undefined,
         } : undefined
       );
 

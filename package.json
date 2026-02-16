@@ -38,6 +38,7 @@
     "nodemailer": "^7.0.12",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
+    "razorpay": "^2.9.6",
     "reflect-metadata": "^0.2.2",
     "socket.io": "^4.7.2",
     "tesseract.js": "^7.0.0",

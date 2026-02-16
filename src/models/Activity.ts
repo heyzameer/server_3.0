@@ -50,6 +50,12 @@ const activitySchema = new Schema<IActivity>({
         type: String,
         required: true
     },
+    category: {
+        type: String,
+        required: false, // Optional for backward compatibility or if not set initially
+        default: 'Others',
+        index: true
+    },
     duration: {
         type: Number,
         required: true,

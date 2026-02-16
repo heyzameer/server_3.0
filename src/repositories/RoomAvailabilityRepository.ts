@@ -1,15 +1,7 @@
 import { IRoomAvailability } from '../interfaces/IModel/IRoomAvailability';
 import { RoomAvailability } from '../models/RoomAvailability';
 import mongoose from 'mongoose';
-
-export interface IRoomAvailabilityRepository {
-    checkAvailability(roomId: string, checkIn: Date, checkOut: Date): Promise<boolean>;
-    blockDates(roomId: string, propertyId: string, dates: Date[], reason: 'booking' | 'maintenance' | 'manual', bookingId?: string): Promise<void>;
-    releaseDates(bookingId: string): Promise<void>;
-    getAvailabilityCalendar(roomId: string, startDate: Date, endDate: Date): Promise<IRoomAvailability[]>;
-    setCustomPricing(roomId: string, propertyId: string, date: Date, pricing: { basePricePerNight: number, extraPersonCharge: number }): Promise<IRoomAvailability>;
-    unblockDates(roomId: string, dates: Date[]): Promise<void>;
-}
+import { IRoomAvailabilityRepository } from '../interfaces/IRepository/IRoomAvailabilityRepository';
 
 export class RoomAvailabilityRepository implements IRoomAvailabilityRepository {
     /**
@@ -37,7 +29,8 @@ export class RoomAvailabilityRepository implements IRoomAvailabilityRepository {
         propertyId: string,
         dates: Date[],
         reason: 'booking' | 'maintenance' | 'manual',
-        bookingId?: string
+        bookingId?: string,
+        session?: mongoose.ClientSession
     ): Promise<void> {
         const operations = dates.map(date => ({
             updateOne: {
@@ -56,13 +49,13 @@ export class RoomAvailabilityRepository implements IRoomAvailabilityRepository {
             }
         }));
 
-        await RoomAvailability.bulkWrite(operations);
+        await RoomAvailability.bulkWrite(operations, { session });
     }
 
     /**
      * Release all dates associated with a booking (for cancellations)
      */
-    async releaseDates(bookingId: string): Promise<void> {
+    async releaseDates(bookingId: string, session?: mongoose.ClientSession): Promise<void> {
         await RoomAvailability.updateMany(
             { bookingId: new mongoose.Types.ObjectId(bookingId) as any },
             {
@@ -71,7 +64,8 @@ export class RoomAvailabilityRepository implements IRoomAvailabilityRepository {
                     blockedReason: undefined,
                     bookingId: undefined
                 }
-            }
+            },
+            { session }
         );
     }
 

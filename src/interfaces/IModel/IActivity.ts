@@ -21,6 +21,7 @@ export interface IActivity extends Document {
 
     name: string;
     description: string;
+    category: string; // e.g., "Water Activities", "Resort Activities"
     duration: number; // in minutes
     pricePerPerson: number;
     maxParticipants: number;

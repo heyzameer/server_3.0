@@ -95,7 +95,7 @@ export class EmailNotificationService implements IEmailNotificationService {
             <p>Thank you for choosing TravelHub</p>
         </div>
         <div class="content">
-            <p>Hello ${user.firstName || 'Traveler'},</p>
+            <p>Hello ${user.fullName?.split(' ')[0] || 'Traveler'},</p>
             <p>Your booking request has been successfully received and is currently pending approval from the property owner.</p>
             
             <div class="booking-info">
@@ -179,7 +179,7 @@ export class EmailNotificationService implements IEmailNotificationService {
             <p>Your stay is all set</p>
         </div>
         <div class="content">
-            <p>Hello ${user.firstName || 'Traveler'},</p>
+            <p>Hello ${user.fullName?.split(' ')[0] || 'Traveler'},</p>
             <p>Great news! Your booking has been confirmed by the property owner. We can't wait to host you!</p>
             
             <div class="booking-info">
@@ -264,7 +264,7 @@ export class EmailNotificationService implements IEmailNotificationService {
             <h1>Booking Request Declined</h1>
         </div>
         <div class="content">
-            <p>Hello ${user.firstName || 'Traveler'},</p>
+            <p>Hello ${user.fullName?.split(' ')[0] || 'Traveler'},</p>
             <p>We regret to inform you that your booking request could not be confirmed at this time.</p>
             
             <div class="booking-info">

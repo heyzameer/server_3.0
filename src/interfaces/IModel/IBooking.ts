@@ -57,7 +57,7 @@ export interface IBooking extends Document {
     paymentStatus: 'pending' | 'completed' | 'failed' | 'refunded';
     paymentId?: string;
 
-    status: 'pending_payment' | 'payment_completed' | 'confirmed' | 'rejected' | 'checked_in' | 'checked_out' | 'cancelled';
+    status: 'pending_payment' | 'payment_completed' | 'confirmed' | 'rejected' | 'checked_in' | 'checked_out' | 'completed' | 'cancelled';
 
     // Partner approval workflow
     partnerApprovalStatus: 'pending' | 'approved' | 'rejected';
@@ -66,6 +66,13 @@ export interface IBooking extends Document {
     rejectedAt?: Date;
 
     cancellationReason?: string;
+
+    // Refund workflow
+    refundStatus: 'not_requested' | 'requested' | 'approved' | 'rejected' | 'processed';
+    refundAmount?: number;
+    refundRequestedAt?: Date;
+    refundProcessedAt?: Date;
+    refundReason?: string;
 
     bookedAt: Date;
     confirmedAt?: Date;
