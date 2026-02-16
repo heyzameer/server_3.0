@@ -6,7 +6,7 @@ const TransactionSchema: Schema<ITransaction> = new Schema(
     userType: {
       type: String,
       required: true,
-      enum: ['User', 'DeliveryPartner'],
+      enum: ['User', 'Partner'],
     },
     userId: {
       type: Schema.Types.ObjectId,

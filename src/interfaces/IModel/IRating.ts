@@ -1,10 +1,10 @@
 import { Document, Types } from 'mongoose';
 
 export interface IRating extends Document {
-  ratedByModel: 'User' | 'DeliveryPartner';
+  ratedByModel: 'User' | 'Partner';
   ratedById: Types.ObjectId;
 
-  ratedForModel: 'User' | 'DeliveryPartner';
+  ratedForModel: 'User' | 'Partner';
   ratedForId: Types.ObjectId;
 
   orderId: string;

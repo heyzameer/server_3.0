@@ -10,6 +10,7 @@ import { injectable, inject } from 'tsyringe';
 import { IAuthService } from '../interfaces/IService/IAuthService';
 import { IOTPRepository } from '../interfaces/IRepository/IOTPRepository';
 import { IUserRepository } from '../interfaces/IRepository/IUserRepository';
+import { IPartnerRepository } from '../interfaces/IRepository/IPartnerRepository';
 import { IUser } from '../interfaces/IModel/IUser';
 import { IEmailService } from '../interfaces/IService/IEmailService';
 import { HttpStatus } from '../enums/HttpStatus';
@@ -20,6 +21,7 @@ export class AuthService implements IAuthService {
 
   constructor(
     @inject('UserRepository') private userRepository: IUserRepository,
+    @inject('PartnerRepository') private partnerRepository: IPartnerRepository,
     @inject('OTPRepository') private otpRepository: IOTPRepository,
     @inject('EmailService') private emailService: IEmailService
   ) { }
@@ -357,15 +359,25 @@ export class AuthService implements IAuthService {
     try {
       const decoded = jwt.verify(refreshToken, config.jwtSecret) as JWTPayload;
 
+      // Check both repositories
       const user = await this.userRepository.findById(decoded.userId);
-      if (!user || !user.isActive) {
+      const partner = !user ? await this.partnerRepository.findById(decoded.userId) : null;
+
+      const account = user || partner;
+
+      if (!account) {
         throw createError(ResponseMessages.INVALID_TOKEN, HttpStatus.UNAUTHORIZED);
       }
 
-      const newAccessToken = this.generateAccessToken(user);
+      if (!account.isActive) {
+        throw createError(ResponseMessages.ACCOUNT_DEACTIVATED, HttpStatus.UNAUTHORIZED);
+      }
+
+      const newAccessToken = this.generateAccessToken(account as any);
 
       return { accessToken: newAccessToken };
-    } catch (error) {
+    } catch (error: any) {
+      if (error.statusCode === HttpStatus.UNAUTHORIZED) throw error;
       logger.error('Token refresh failed:', error);
       throw createError(ResponseMessages.INVALID_TOKEN, HttpStatus.UNAUTHORIZED);
     }
@@ -473,7 +485,10 @@ export class AuthService implements IAuthService {
       const decoded = jwt.verify(token, config.jwtSecret) as JWTPayload;
 
       const user = await this.userRepository.findById(decoded.userId);
-      if (!user || !user.isActive) {
+      const partner = !user ? await this.partnerRepository.findById(decoded.userId) : null;
+      const account = user || partner;
+
+      if (!account || !account.isActive) {
         throw createError(ResponseMessages.INVALID_TOKEN, HttpStatus.UNAUTHORIZED);
       }
 
@@ -482,23 +497,63 @@ export class AuthService implements IAuthService {
       throw createError(ResponseMessages.INVALID_TOKEN, HttpStatus.UNAUTHORIZED);
     }
   }
+
+  /**
+   * Update user profile
+   * @param userId 
+   * @param updateData 
+   * @returns Updated user
+   */
+  async updateProfile(userId: string, updateData: any): Promise<IUser> {
+    try {
+      // Check if user exists
+      const user = await this.userRepository.findById(userId);
+      if (!user) {
+        throw createError(ResponseMessages.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
+      }
+
+      // Handle profile image upload if present in updateData (it comes from controller as file url)
+      // The controller extracts the URL from req.files and passes it in updateData.profileImage
+
+      // Update fields
+      const allowedUpdates = ['fullName', 'phone', 'profileImage'];
+      const updates: any = {};
+
+      Object.keys(updateData).forEach(key => {
+        if (allowedUpdates.includes(key)) {
+          updates[key] = updateData[key];
+        }
+      });
+
+      // Update user
+      const updatedUser = await this.userRepository.update(userId, updates);
+
+      if (!updatedUser) {
+        throw createError('Failed to update profile', HttpStatus.INTERNAL_SERVER_ERROR);
+      }
+
+      logger.info(`User profile updated: ${userId}`);
+      return updatedUser;
+    } catch (error) {
+      logger.error('Profile update failed:', error);
+      throw error;
+    }
+  }
+
   /**
    * 
    * @param token 
    * @returns 
    */
   async getUserFromToken(token: string): Promise<IUser> {
-    // try {
     const decoded = await this.validateToken(token);
     const user = await this.userRepository.findById(decoded.userId);
+    const partner = !user ? await this.partnerRepository.findById(decoded.userId) : null;
 
-    if (!user) {
+    if (!user && !partner) {
       throw createError(ResponseMessages.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
     }
 
-    return user;
-    // } catch (error) {
-    // throw error;
-    // }
+    return (user || partner) as any;
   }
 }

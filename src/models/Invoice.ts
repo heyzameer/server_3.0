@@ -17,7 +17,7 @@ const InvoiceSchema = new Schema<IInvoice>(
     ownerModel: {
       type: String,
       required: true,
-      enum: ['User', 'DeliveryPartner']
+      enum: ['User', 'Partner']
     },
     amount: {
       type: Number,

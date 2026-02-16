@@ -1,7 +1,7 @@
 import { injectable } from 'tsyringe';
 import { FilterQuery } from 'mongoose';
 import { BaseRepository } from './BaseRepository';
-import { User} from '../models/User';
+import { User } from '../models/User';
 import { UserRole, PaginationOptions, PaginatedResult } from '../types';
 import { IUserRepository } from '../interfaces/IRepository/IUserRepository';
 import { IUser } from '../interfaces/IModel/IUser';
@@ -13,8 +13,8 @@ export class UserRepository extends BaseRepository<IUser> implements IUserReposi
   }
 
   async findByEmail(email: string): Promise<IUser | null> {
-  return this.model.findOne({ email: email.toLowerCase() }).select('+password').exec() as Promise<IUser | null>;
-}
+    return this.model.findOne({ email: email.toLowerCase() }).select('+password').exec() as Promise<IUser | null>;
+  }
 
   async findByPhone(phone: string): Promise<IUser | null> {
     return this.model.findOne({ phone });
@@ -35,18 +35,18 @@ export class UserRepository extends BaseRepository<IUser> implements IUserReposi
   }
 
 
-  async findDeliveryPartners(
+  async findPartners(
     isOnline?: boolean,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<IUser> | IUser[]> {
     const filter: FilterQuery<IUser> = {
       role: UserRole.PARTNER,
       isActive: true,
-      'deliveryPartnerInfo.documentsVerified': true,
+      'partnerInfo.documentsVerified': true,
     };
 
     if (isOnline !== undefined) {
-      filter['deliveryPartnerInfo.isOnline'] = isOnline;
+      filter['partnerInfo.isOnline'] = isOnline;
     }
 
     if (pagination) {
@@ -56,40 +56,40 @@ export class UserRepository extends BaseRepository<IUser> implements IUserReposi
     return this.find(filter);
   }
 
-  async findDeliveryPartnersNearby(
-  latitude: number,
-  longitude: number,
-  radiusKm: number = 10
-): Promise<IUser[]> {
-  return (this.model as any).findDeliveryPartnersNearby(latitude, longitude, radiusKm);
-}
+  async findPartnersNearby(
+    latitude: number,
+    longitude: number,
+    radiusKm: number = 10
+  ): Promise<IUser[]> {
+    return (this.model as any).findPartnersNearby(latitude, longitude, radiusKm);
+  }
 
   async updateLastLogin(userId: string): Promise<IUser | null> {
     return this.update(userId, { lastLoginAt: new Date() });
   }
 
-  async updateDeliveryPartnerOnlineStatus(userId: string, isOnline: boolean): Promise<IUser | null> {
+  async updatePartnerOnlineStatus(userId: string, isOnline: boolean): Promise<IUser | null> {
     return this.update(userId, {
-      'deliveryPartnerInfo.isOnline': isOnline,
-      'deliveryPartnerInfo.lastLocationUpdate': new Date(),
+      'partnerInfo.isOnline': isOnline,
+      'partnerInfo.lastLocationUpdate': new Date(),
     });
   }
 
-  async updateDeliveryPartnerRating(userId: string, newRating: number): Promise<IUser | null> {
+  async updatePartnerRating(userId: string, newRating: number): Promise<IUser | null> {
     const user = await this.findById(userId);
     if (!user || user.role !== UserRole.PARTNER) {
-      throw new Error('Delivery partner not found');
+      throw new Error('Partner not found');
     }
 
     const currentRating = 3
-    const totalDeliveries =   0;
-    
+    const totalBookings = 0;
+
     // Calculate new average rating
-    const updatedRating = ((currentRating * totalDeliveries) + newRating) / (totalDeliveries + 1);
+    const updatedRating = ((currentRating * totalBookings) + newRating) / (totalBookings + 1);
 
     return this.update(userId, {
-      'deliveryPartnerInfo.rating': updatedRating,
-      'deliveryPartnerInfo.totalDeliveries': totalDeliveries + 1,
+      'partnerInfo.rating': updatedRating,
+      'partnerInfo.totalBookings': totalBookings + 1,
     });
   }
 

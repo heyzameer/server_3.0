@@ -66,7 +66,22 @@ const userSchema = new Schema<IUser>(
     preferenceId: { type: Schema.Types.ObjectId, ref: 'Preference' },
     ratingId: { type: Schema.Types.ObjectId, ref: 'Rating' },
     walletId: { type: Schema.Types.ObjectId, ref: 'Wallet' },
-
+    partnerInfo: {
+      isOnline: { type: Boolean, default: false },
+      lastLocationUpdate: { type: Date },
+      lastOnlineStatusUpdate: { type: Date },
+      rating: { type: Number, default: 5 },
+      totalBookings: { type: Number, default: 0 },
+      documentsVerified: { type: Boolean, default: false },
+      vehicleType: { type: String },
+      vehicleNumber: { type: String },
+      licenseNumber: { type: String },
+      licenseExpiry: { type: Date }
+    },
+    wishlist: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Property'
+    }],
   },
   {
     timestamps: true,
@@ -88,5 +103,30 @@ userSchema.index({ phone: 1 }, { unique: true });
 userSchema.index({ role: 1 });
 userSchema.index({ isActive: 1 });
 userSchema.index({ createdAt: -1 });
+
+userSchema.statics.findPartnersNearby = async function (
+  latitude: number,
+  longitude: number,
+  radiusKm: number = 10
+): Promise<IUser[]> {
+  return this.aggregate([
+    {
+      $geoNear: {
+        near: {
+          type: 'Point',
+          coordinates: [longitude, latitude],
+        },
+        distanceField: 'distance',
+        maxDistance: radiusKm * 1000,
+        spherical: true,
+        query: {
+          role: UserRole.PARTNER,
+          isActive: true,
+          'partnerInfo.isOnline': true,
+        },
+      },
+    },
+  ]);
+};
 
 export const User = mongoose.model<IUser, IUserModel>('User', userSchema);

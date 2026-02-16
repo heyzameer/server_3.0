@@ -16,6 +16,8 @@ import {
   ValidateTokenDto
 } from '../dtos/auth.dto';
 import config from '../config';
+import { ResponseMessages } from '../enums/ResponseMessages';
+import { HttpStatus } from '../enums/HttpStatus';
 
 @injectable()
 /**
@@ -46,11 +48,11 @@ export class AuthController {
       maxAge: config.cookieExpiration ? parseInt(config.cookieExpiration.toString()) * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000, // Default to 7 days
     });
 
-    sendSuccess(res, 'User registered successfully', {
+    sendSuccess(res, ResponseMessages.REGISTER_SUCCESS, {
       user,
       accessToken,
       refreshToken
-    }, 201);
+    }, HttpStatus.CREATED);
   });
 
 
@@ -74,7 +76,7 @@ export class AuthController {
       maxAge: config.cookieExpiration ? parseInt(config.cookieExpiration.toString()) * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000, // Default to 7 days
     });
 
-    sendSuccess(res, 'Login successful', {
+    sendSuccess(res, ResponseMessages.LOGIN_SUCCESS, {
       user,
       accessToken,
       refreshToken
@@ -93,7 +95,7 @@ export class AuthController {
     const { email } = req.body;
     await this.authService.requestPasswordReset(email);
 
-    sendSuccess(res, 'Password reset OTP sent to your email');
+    sendSuccess(res, ResponseMessages.PASSWORD_RESET_OTP_SENT);
   });
 
   /**
@@ -108,7 +110,7 @@ export class AuthController {
     const { email, otp, password } = req.body;
     await this.authService.resetPassword(email, otp, password);
 
-    sendSuccess(res, 'Password reset successfully');
+    sendSuccess(res, ResponseMessages.PASSWORD_RESET_SUCCESS);
   });
 
   /**
@@ -125,7 +127,7 @@ export class AuthController {
 
     await this.authService.changePassword(userId, currentPassword, newPassword);
 
-    sendSuccess(res, 'Password changed successfully');
+    sendSuccess(res, ResponseMessages.PASSWORD_CHANGED);
   });
 
   /**
@@ -143,7 +145,7 @@ export class AuthController {
     // TODO: Validate if 'type' is a valid OTPType if not handled by Joi
     await this.authService.requestOTPVerification(userId, type);
 
-    sendSuccess(res, `${type} OTP sent successfully`);
+    sendSuccess(res, ResponseMessages.OTP_SENT);
   });
 
   /**
@@ -160,7 +162,7 @@ export class AuthController {
 
     await this.authService.generateVerificationOTPs(userId, type as OTPType);
 
-    sendSuccess(res, `${type} OTP resent successfully`);
+    sendSuccess(res, ResponseMessages.OTP_SENT);
   });
 
 
@@ -178,7 +180,7 @@ export class AuthController {
 
     await this.authService.verifyOTP(userId, type, code);
 
-    sendSuccess(res, `${type} verified successfully`);
+    sendSuccess(res, ResponseMessages.OTP_VERIFIED);
   });
 
   /**
@@ -196,12 +198,12 @@ export class AuthController {
     const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) {
       // console.log('No refresh token found!');
-      return sendError(res, 'Refresh token required', 400);
+      return sendError(res, ResponseMessages.INVALID_TOKEN, HttpStatus.BAD_REQUEST);
     }
 
     const { accessToken: newAccessToken } = await this.authService.refreshToken(refreshToken);
 
-    sendSuccess(res, 'Token refreshed successfully', { accessToken: newAccessToken });
+    sendSuccess(res, ResponseMessages.TOKEN_REFRESHED, { accessToken: newAccessToken });
   });
 
   /**
@@ -222,7 +224,7 @@ export class AuthController {
       path: '/', // or same path used when setting
     });
 
-    sendSuccess(res, 'Logout successful');
+    sendSuccess(res, ResponseMessages.LOGOUT_SUCCESS);
   });
 
   /**
@@ -237,12 +239,36 @@ export class AuthController {
     const token = req.headers.authorization?.split(' ')[1];
 
     if (!token) {
-      return sendError(res, 'Token required', 400);
+      return sendError(res, ResponseMessages.AUTH_TOKEN_REQUIRED, HttpStatus.BAD_REQUEST);
     }
 
     const user = await this.authService.getUserFromToken(token);
 
-    sendSuccess(res, 'Profile retrieved successfully', { user });
+    sendSuccess(res, ResponseMessages.PROFILE_RETRIEVED, { user });
+  });
+
+  /**
+   * Update user profile.
+   * 
+   * @param req - Express request object.
+   * @param res - Express response object.
+   * @param next - Express next function.
+   */
+  updateProfile = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const userId = req.user!.userId;
+    const updateData = req.body;
+
+    // Handle file upload
+    if (req.files && !Array.isArray(req.files)) {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      if (files.profileImage && files.profileImage[0]) {
+        updateData.profileImage = (files.profileImage[0] as any).location; // S3 URL
+      }
+    }
+
+    const user = await this.authService.updateProfile(userId, updateData);
+
+    sendSuccess(res, ResponseMessages.PROFILE_UPDATED, { user });
   });
 
 
@@ -259,7 +285,7 @@ export class AuthController {
 
     const payload = await this.authService.validateToken(token);
 
-    sendSuccess(res, 'Token is valid', { payload });
+    sendSuccess(res, ResponseMessages.TOKEN_VALID, { payload });
   });
 
 
@@ -274,8 +300,8 @@ export class AuthController {
     try {
       const user = req.user as any; // User comes from passport middleware
       // Generate Tokens
-      const accessToken = this.authService.generateAccessToken(user._id);
-      const refreshToken = this.authService.generateRefreshToken(user._id);
+      const accessToken = this.authService.generateAccessToken(user);
+      const refreshToken = this.authService.generateRefreshToken(user);
       // Redirect to Frontend Callback Page with tokens
       // TODO: Move valid URL to config
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001/auth/google/callback';

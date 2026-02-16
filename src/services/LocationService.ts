@@ -8,7 +8,6 @@ import { createError } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
 import { injectable, inject } from 'tsyringe';
 import { ILocationService } from '../interfaces/IService/ILocationService';
-import mongoose from 'mongoose';
 import { ILocationRepository } from '../interfaces/IRepository/ILocationRepository';
 import { IUserRepository } from '../interfaces/IRepository/IUserRepository';
 import { ILocation } from '../interfaces/IModel/ILocation';
@@ -52,24 +51,30 @@ export class LocationService implements ILocationService {
         throw createError(ResponseMessages.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
+      const mergedCoordinates = {
+        ...coordinates,
+        heading: additionalData?.heading,
+        speed: additionalData?.speed
+      };
+
       const location = await this.locationRepository.updateUserLocation(
         userId,
-        coordinates,
+        mergedCoordinates,
         additionalData ? {
-          ...additionalData,
+          isOnline: additionalData.isOnline,
+          batteryLevel: additionalData.batteryLevel,
+          networkType: additionalData.networkType,
           orderId: additionalData.orderId
-            ? new mongoose.Types.ObjectId(additionalData.orderId)
-            : undefined,
         } : undefined
       );
 
       if (user.role === UserRole.PARTNER) {
         await this.userRepository.update(userId, {
-          'deliveryPartnerInfo.lastLocationUpdate': new Date(),
+          'partnerInfo.lastLocationUpdate': new Date(),
         });
 
         if (additionalData?.isOnline !== undefined) {
-          await this.userRepository.updateDeliveryPartnerOnlineStatus(
+          await this.userRepository.updatePartnerOnlineStatus(
             userId,
             additionalData.isOnline
           );
@@ -124,7 +129,7 @@ export class LocationService implements ILocationService {
   /**
    * Find partners currently active within a specific radius of a coordinate.
    */
-  async findNearbyDeliveryPartners(
+  async findNearbyPartners(
     latitude: number,
     longitude: number,
     radiusKm: number = 10
@@ -134,14 +139,14 @@ export class LocationService implements ILocationService {
       if (longitude < -180 || longitude > 180) throw createError('Invalid longitude', HttpStatus.BAD_REQUEST);
       if (radiusKm <= 0 || radiusKm > 100) throw createError('Radius must be between 1 and 100 km', HttpStatus.BAD_REQUEST);
 
-      const nearbyPartners = await this.locationRepository.findNearbyDeliveryPartners(
+      const nearbyPartners = await this.locationRepository.findNearbyPartners(
         latitude,
         longitude,
         radiusKm
       );
       return nearbyPartners;
     } catch (error) {
-      logger.error('Find nearby delivery partners failed:', error);
+      logger.error('Find nearby partners failed:', error);
       throw error;
     }
   }
@@ -159,33 +164,33 @@ export class LocationService implements ILocationService {
   }
 
   /**
-   * Toggle the delivery partner's availability status.
+   * Toggle the partner's availability status.
    */
-  async updateDeliveryPartnerOnlineStatus(userId: string, isOnline: boolean): Promise<void> {
+  async updatePartnerOnlineStatus(userId: string, isOnline: boolean): Promise<void> {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user || user.role !== UserRole.PARTNER) {
-        throw createError(ResponseMessages.NOT_DELIVERY_PARTNER, HttpStatus.BAD_REQUEST);
+        throw createError(ResponseMessages.NOT_PARTNER, HttpStatus.BAD_REQUEST);
       }
 
-      await this.userRepository.updateDeliveryPartnerOnlineStatus(userId, isOnline);
-      await this.locationRepository.updateDeliveryPartnerStatus(userId, isOnline);
+      await this.userRepository.updatePartnerOnlineStatus(userId, isOnline);
+      await this.locationRepository.updatePartnerStatus(userId, isOnline);
 
-      logger.info(`Delivery partner online status updated: ${userId} - ${isOnline}`);
+      logger.info(`Partner online status updated: ${userId} - ${isOnline}`);
     } catch (error) {
-      logger.error('Update delivery partner online status failed:', error);
+      logger.error('Update partner online status failed:', error);
       throw error;
     }
   }
 
   /**
-   * Get all location records marked as being from online delivery partners.
+   * Get all location records marked as being from online partners.
    */
-  async getActiveDeliveryPartners(): Promise<ILocation[]> {
+  async getActivePartners(): Promise<ILocation[]> {
     try {
-      return this.locationRepository.getActiveDeliveryPartners();
+      return this.locationRepository.getActivePartners();
     } catch (error) {
-      logger.error('Get active delivery partners failed:', error);
+      logger.error('Get active partners failed:', error);
       throw error;
     }
   }
@@ -193,7 +198,7 @@ export class LocationService implements ILocationService {
   /**
    * Analyze partner movement statistics (speed, distance) for a timeframe.
    */
-  async getDeliveryPartnerMovementStats(
+  async getPartnerMovementStats(
     userId: string,
     startDate: Date,
     endDate: Date
@@ -201,10 +206,10 @@ export class LocationService implements ILocationService {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user || user.role !== UserRole.PARTNER) {
-        throw createError(ResponseMessages.NOT_DELIVERY_PARTNER, HttpStatus.BAD_REQUEST);
+        throw createError(ResponseMessages.NOT_PARTNER, HttpStatus.BAD_REQUEST);
       }
 
-      const stats = await this.locationRepository.getDeliveryPartnerMovementStats(
+      const stats = await this.locationRepository.getPartnerMovementStats(
         userId,
         startDate,
         endDate
@@ -219,31 +224,31 @@ export class LocationService implements ILocationService {
         lastLocation: null,
       };
     } catch (error) {
-      logger.error('Get delivery partner movement stats failed:', error);
+      logger.error('Get partner movement stats failed:', error);
       throw error;
     }
   }
 
   /**
-   * Track the current and past locations associated with an order delivery.
+   * Track the current and past locations associated with a booking completion.
    */
   async trackOrderLocation(orderId: string): Promise<{
-    deliveryPartnerLocation: ILocation | null;
+    partnerLocation: ILocation | null;
     locationHistory: ILocation[];
   }> {
     try {
       const locationHistory = await this.locationRepository.getOrderTrackingLocations(orderId);
 
-      let deliveryPartnerLocation: ILocation | null = null;
+      let partnerLocation: ILocation | null = null;
       if (locationHistory.length > 0) {
         const latestLocation = locationHistory[locationHistory.length - 1];
-        deliveryPartnerLocation = await this.locationRepository.getLatestLocation(
+        partnerLocation = await this.locationRepository.getLatestLocation(
           latestLocation.userId.toString()
         );
       }
 
       return {
-        deliveryPartnerLocation,
+        partnerLocation,
         locationHistory,
       };
     } catch (error) {
@@ -320,7 +325,7 @@ export class LocationService implements ILocationService {
   /**
    * Generate heatmap data from location distribution within geographical bounds.
    */
-  async getDeliveryHeatmap(
+  async getPartnerHeatmap(
     bounds: {
       northEast: { latitude: number; longitude: number };
       southWest: { latitude: number; longitude: number };
@@ -380,7 +385,7 @@ export class LocationService implements ILocationService {
 
       return heatmapData;
     } catch (error) {
-      logger.error('Get delivery heatmap failed:', error);
+      logger.error('Get partner heatmap failed:', error);
       throw error;
     }
   }
@@ -454,19 +459,19 @@ export class LocationService implements ILocationService {
   }
 
   /**
-   * Find the most suitable delivery partner for a given pickup and delivery route.
+   * Find the most suitable partner for a given check-in and check-out route.
    */
-  async findOptimalDeliveryPartner(
-    pickupLatitude: number,
-    pickupLongitude: number,
-    deliveryLatitude: number,
-    deliveryLongitude: number,
+  async findOptimalPartner(
+    checkInLatitude: number,
+    checkInLongitude: number,
+    checkOutLatitude: number,
+    checkOutLongitude: number,
     radiusKm: number = 10
   ): Promise<any> {
     try {
-      const nearbyPartners = await this.locationRepository.findNearbyDeliveryPartners(
-        pickupLatitude,
-        pickupLongitude,
+      const nearbyPartners = await this.locationRepository.findNearbyPartners(
+        checkInLatitude,
+        checkInLongitude,
         radiusKm
       );
 
@@ -474,30 +479,30 @@ export class LocationService implements ILocationService {
 
       const scoredPartners = await Promise.all(
         nearbyPartners.map(async (partner) => {
-          const pickupDistance = this.calculateDistance(
-            pickupLatitude,
-            pickupLongitude,
+          const checkInDistance = this.calculateDistance(
+            checkInLatitude,
+            checkInLongitude,
             partner.coordinates.latitude,
             partner.coordinates.longitude
           );
 
-          const deliveryDistance = this.calculateDistance(
+          const checkOutDistance = this.calculateDistance(
             partner.coordinates.latitude,
             partner.coordinates.longitude,
-            deliveryLatitude,
-            deliveryLongitude
+            checkOutLatitude,
+            checkOutLongitude
           );
 
           const rating = 5;
 
-          const distanceScore = (pickupDistance + deliveryDistance) * 0.7;
+          const distanceScore = (checkInDistance + checkOutDistance) * 0.7;
           const ratingScore = (5 - rating) * 0.2;
           const totalScore = distanceScore + ratingScore;
 
           return {
             ...partner,
-            pickupDistance,
-            deliveryDistance,
+            checkInDistance,
+            checkOutDistance,
             rating,
             score: totalScore
           };
@@ -507,7 +512,7 @@ export class LocationService implements ILocationService {
       scoredPartners.sort((a, b) => a.score - b.score);
       return scoredPartners[0];
     } catch (error) {
-      logger.error('Find optimal delivery partner failed:', error);
+      logger.error('Find optimal partner failed:', error);
       throw error;
     }
   }

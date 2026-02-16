@@ -9,7 +9,7 @@ export enum PartnerStatus {
   SUSPENDED = 'suspended'
 }
 
-const deliveryPartnerSchema = new Schema<IPartner>({
+const partnerSchema = new Schema<IPartner>({
   // ============================================
   // REQUIRED FOR REGISTRATION ONLY
   // ============================================
@@ -54,105 +54,30 @@ const deliveryPartnerSchema = new Schema<IPartner>({
     required: false
   },
 
-  // References
-  addressId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Address',
-    required: false
-  },
-  vehicleId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Vehicle',
-    required: false
-  },
-  ratingId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Rating',
-    required: false
-  },
-  preferenceId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Preference',
-    required: false
-  },
-  walletId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Wallet',
-    required: false
-  },
-
-  // Personal Documents
+  // Aadhaar Verification (Identity Verification)
   personalDocuments: {
     aadharFront: { type: String, required: false },
     aadharBack: { type: String, required: false },
+    aadharNumber: { type: String, required: false }, // Added for manual/admin view
     aadharStatus: {
       type: String,
-      enum: ['pending', 'approved', 'rejected'],
-      default: 'pending'
+      enum: ['pending', 'not_submitted', 'approved', 'rejected'],
+      default: 'not_submitted'
     },
-    aadharRejectionReason: { type: String, required: false },
-
-    panFront: { type: String, required: false },
-    panBack: { type: String, required: false },
-    panStatus: {
-      type: String,
-      enum: ['pending', 'approved', 'rejected'],
-      default: 'pending'
-    },
-    panRejectionReason: { type: String, required: false },
-
-    licenseFront: { type: String, required: false },
-    licenseBack: { type: String, required: false },
-    licenseStatus: {
-      type: String,
-      enum: ['pending', 'approved', 'rejected'],
-      default: 'pending'
-    },
-    licenseRejectionReason: { type: String, required: false }
+    aadharRejectionReason: { type: String, required: false }
   },
 
-  // Banking Details
-  bankingDetails: {
-    accountHolderName: { type: String, required: false },
-    accountNumber: { type: String, required: false },
-    ifscCode: { type: String, required: false },
-    upiId: { type: String, required: false },
-    bankingStatus: {
-      type: String,
-      enum: ['pending', 'approved', 'rejected'],
-      default: 'pending'
-    },
-    rejectionReason: { type: String, required: false }
-  },
-
-  // Vehicle Documents
-  vehicalDocuments: {
-    vehicleType: { type: String, required: false },
-    registrationNumber: { type: String, required: false },
-    insuranceDocument: { type: String, required: false },
-    pollutionDocument: { type: String, required: false },
-    insuranceStatus: {
-      type: String,
-      enum: ['pending', 'approved', 'rejected'],
-      default: 'pending'
-    },
-    pollutionStatus: {
-      type: String,
-      enum: ['pending', 'approved', 'rejected'],
-      default: 'pending'
-    },
-    insuranceRejectionReason: { type: String, required: false },
-    pollutionRejectionReason: { type: String, required: false }
+  // Extracted Aadhaar Details (Encrypted)
+  aadharDetails: {
+    aadharNumber: { type: String, required: false },
+    fullName: { type: String, required: false },
+    dob: { type: String, required: false },
+    gender: { type: String, required: false }
   },
 
   // ============================================
   // STATUS & ACTIVITY
   // ============================================
-  isAvailable: {
-    type: Boolean,
-    default: false,
-    index: true
-  },
   isActive: {
     type: Boolean,
     default: true,
@@ -167,67 +92,38 @@ const deliveryPartnerSchema = new Schema<IPartner>({
     enum: Object.values(PartnerStatus),
     default: PartnerStatus.PENDING
   },
-  hasPendingRequest: {
+  aadhaarVerified: {
     type: Boolean,
-    default: false
+    default: false,
+    index: true
+  },
+  verifiedAt: {
+    type: Date,
+    required: false
   },
 
-  lastSeen: { type: Date },
-  lastRequestTime: { type: Date },
-  lastLocationUpdate: { type: Date },
   lastOnline: { type: Date },
   lastLoginAt: { type: Date },
-  currentOrderId: { type: String },
 
   // ============================================
-  // COMPLETION FLAGS
+  // PROPERTY MANAGEMENT
   // ============================================
-  bankDetailsCompleted: {
-    type: Boolean,
-    default: false
+  totalProperties: {
+    type: Number,
+    default: 0,
+    index: true
   },
-  personalDocumentsCompleted: {
-    type: Boolean,
-    default: false
-  },
-  vehicleDetailsCompleted: {
-    type: Boolean,
-    default: false
+  maxProperties: {
+    type: Number,
+    default: 5 // Default limit, can be configured per partner
   },
 
-  // ============================================
-  // ORDER STATISTICS
-  // ============================================
-  totalOrders: {
-    type: Number,
-    default: 0
-  },
-  ongoingOrders: {
-    type: Number,
-    default: 0
-  },
-  completedOrders: {
-    type: Number,
-    default: 0
-  },
-  canceledOrders: {
-    type: Number,
-    default: 0
-  },
-
-  // ============================================
-  // LOCATION
-  // ============================================
-  location: {
-    type: {
-      type: String,
-      enum: ['Point'],
-      default: 'Point'
-    },
-    coordinates: {
-      type: [Number],
-      default: [0, 0]
-    }
+  // Banking Details (optional - for partner account)
+  bankingDetails: {
+    accountHolderName: { type: String, required: false },
+    accountNumber: { type: String, required: false },
+    ifscCode: { type: String, required: false },
+    upiId: { type: String, required: false }
   }
 
 }, {
@@ -237,17 +133,17 @@ const deliveryPartnerSchema = new Schema<IPartner>({
 // ============================================
 // INDEXES
 // ============================================
-deliveryPartnerSchema.index({ location: '2dsphere' });
-deliveryPartnerSchema.index({ isAvailable: 1, isActive: 1, isVerified: 1 });
-deliveryPartnerSchema.index({ email: 1 });
-deliveryPartnerSchema.index({ partnerId: 1 });
+partnerSchema.index({ email: 1 });
+partnerSchema.index({ partnerId: 1 });
+partnerSchema.index({ isActive: 1, aadhaarVerified: 1 });
+partnerSchema.index({ totalProperties: 1 });
 
 // ============================================
 // PRE-SAVE MIDDLEWARE
 // ============================================
 
 // Generate partnerId automatically
-deliveryPartnerSchema.pre('save', async function (next) {
+partnerSchema.pre('save', async function (next) {
   if (this.isNew && !this.partnerId) {
     const prefix = 'PRT';
     const timestamp = Date.now().toString().slice(-6);
@@ -258,7 +154,7 @@ deliveryPartnerSchema.pre('save', async function (next) {
 });
 
 // Hash password before saving
-deliveryPartnerSchema.pre('save', async function (next) {
+partnerSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
 
   this.password = await bcrypt.hash(this.password, 10);
@@ -269,76 +165,24 @@ deliveryPartnerSchema.pre('save', async function (next) {
 // INSTANCE METHODS
 // ============================================
 
-// Check if profile is complete
-deliveryPartnerSchema.methods.isProfileComplete = function (): boolean {
-  return this.bankDetailsCompleted &&
-    this.personalDocumentsCompleted &&
-    this.vehicleDetailsCompleted;
+// Check if partner can add more properties
+partnerSchema.methods.canAddProperty = function (): boolean {
+  return this.aadhaarVerified && this.totalProperties < this.maxProperties;
 };
 
-// Calculate profile completion percentage
-deliveryPartnerSchema.methods.getProfileCompletionPercentage = function (): number {
-  let completed = 0;
-  const totalSteps = 3;
-
-  if (this.bankDetailsCompleted) completed++;
-  if (this.personalDocumentsCompleted) completed++;
-  if (this.vehicleDetailsCompleted) completed++;
-
-  return Math.round((completed / totalSteps) * 100);
+// Get remaining property slots
+partnerSchema.methods.getRemainingPropertySlots = function (): number {
+  return Math.max(0, this.maxProperties - this.totalProperties);
 };
 
-// Get next onboarding step
-deliveryPartnerSchema.methods.getNextOnboardingStep = function (): string | null {
-  if (!this.personalDocumentsCompleted) {
-    return 'personal-documents';
-  }
-  if (!this.bankDetailsCompleted) {
-    return 'banking-details';
-  }
-  if (!this.vehicleDetailsCompleted) {
-    return 'vehicle-details';
-  }
-  return null; // All steps completed
-};
-
-// Check if all documents are approved
-deliveryPartnerSchema.methods.isFullyVerified = function (): boolean {
-  const docs = this.personalDocuments;
-  const vehicleDocs = this.vehicalDocuments;
-  const banking = this.bankingDetails;
-
-  return (
-    docs?.aadharStatus === 'approved' &&
-    docs?.panStatus === 'approved' &&
-    docs?.licenseStatus === 'approved' &&
-    vehicleDocs?.insuranceStatus === 'approved' &&
-    vehicleDocs?.pollutionStatus === 'approved' &&
-    banking?.bankingStatus === 'approved'
-  );
-};
-
-// Get verification status
-deliveryPartnerSchema.methods.getVerificationStatus = function () {
-  return {
-    registration: true, // Always true after registration
-    personalDocuments: {
-      aadhar: this.personalDocuments?.aadharStatus || 'pending',
-      pan: this.personalDocuments?.panStatus || 'pending',
-      license: this.personalDocuments?.licenseStatus || 'pending'
-    },
-    vehicle: {
-      insurance: this.vehicalDocuments?.insuranceStatus || 'pending',
-      pollution: this.vehicalDocuments?.pollutionStatus || 'pending'
-    },
-    banking: this.bankingDetails?.bankingStatus || 'pending',
-    isFullyVerified: this.isFullyVerified()
-  };
+// Check if Aadhaar is verified
+partnerSchema.methods.isAadhaarVerified = function (): boolean {
+  return this.personalDocuments?.aadharStatus === 'approved';
 };
 
 // Compare password
-deliveryPartnerSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
+partnerSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-export const Partner = mongoose.model<IPartner>('DeliveryPartner', deliveryPartnerSchema);
+export const Partner = mongoose.model<IPartner>('Partner', partnerSchema);

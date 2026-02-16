@@ -1,4 +1,4 @@
-import { PartnerRegistrationData, PaginationOptions, PaginatedResult } from '../../types';
+import { BasicPartnerRegistrationData, PaginationOptions, PaginatedResult } from '../../types';
 import { IPartner } from '../IModel/IPartner';
 
 /**
@@ -6,12 +6,19 @@ import { IPartner } from '../IModel/IPartner';
  */
 export interface IPartnerService {
     /**
-     * Register a new partner.
-     * @param registrationData - Data for the new partner.
-     * @param fileUrls - Map of document type to URL.
-     * @returns Promise resolving to the created partner and a success message.
+     * Verify Aadhaar documents for an existing partner.
+     * @param partnerId - Partner's ID from auth token.
+     * @param fileUrls - Map of document type to S3 URL.
+     * @param dateOfBirth - Optional date of birth.
+     * @returns Promise resolving to the updated partner and success message.
      */
-    register(registrationData: PartnerRegistrationData, fileUrls: { [key: string]: string }): Promise<{ partner: IPartner; message: string; accessToken: string; refreshToken: string }>;
+    verifyAadhar(partnerId: string, fileUrls: { [key: string]: string }, dateOfBirth?: string): Promise<{ partner: IPartner; message: string; accessToken: string; refreshToken: string }>;
+
+    /**
+     * Register a partner with basic details only.
+     * @param registrationData - Basic partner data.
+     */
+    registerPartner(registrationData: BasicPartnerRegistrationData): Promise<{ partner: IPartner; message: string; accessToken: string; refreshToken: string }>;
 
     /**
      * Request a login OTP for a partner.
@@ -30,7 +37,7 @@ export interface IPartnerService {
      * Get the verification status of a partner.
      * @param partnerId - The partner's ID.
      */
-    getVerificationStatus(partnerId: string): Promise<{ isVerified: boolean; verificationStatus: { personalInformation: boolean; personalDocuments: boolean; vehicalDocuments: boolean; bankingDetails: boolean }; }>;
+    getVerificationStatus(partnerId: string): Promise<{ isVerified: boolean; aadhaarVerified: boolean }>;
 
     /**
      * Get the current partner details.
@@ -45,13 +52,13 @@ export interface IPartnerService {
     refreshToken(refreshToken: string): Promise<{ accessToken: string }>;
 
     /**
-     * Update the status of a partner's document.
+     * Update the status of a partner's Aadhaar or banking document.
      * @param partnerId - The partner's ID.
      * @param documentType - The type of document.
      * @param status - The new status.
      * @param rejectionReason - Optional reason for rejection.
      */
-    updateDocumentStatus(partnerId: string, documentType: 'aadhar' | 'pan' | 'license' | 'insurance' | 'pollution' | 'banking', status: 'approved' | 'rejected' | 'pending', rejectionReason?: string): Promise<void>;
+    updateDocumentStatus(partnerId: string, documentType: 'aadhar' | 'banking', status: 'approved' | 'rejected' | 'pending', rejectionReason?: string): Promise<void>;
 
     /**
      * Get all partners.
@@ -68,10 +75,47 @@ export interface IPartnerService {
     updatePartnerStatus(partnerId: string, updateData: Partial<IPartner>): Promise<IPartner | null>;
 
     /**
-     * Get detailed verification status.
+     * Get simplified verification status for Aadhaar.
      * @param partnerId - The partner's ID.
      */
-    getDetailedVerificationStatus(partnerId: string): Promise<any>; // Using any for brevity since type is complex
+    getDetailedVerificationStatus(partnerId: string): Promise<{
+        isVerified: boolean;
+        aadhaarStatus: string;
+        totalProperties: number;
+        canAddProperty: boolean;
+    }>;
 
     sendEmailToPartner(email: string, subject: string, message: string): Promise<void>;
+
+    /**
+     * Check if a partner can add a new property.
+     * @param partnerId - The partner's ID.
+     */
+    canAddProperty(partnerId: string): Promise<boolean>;
+
+    /**
+     * Generate signed URL for profile picture.
+     * @param partnerId - Partner's ID.
+     * @returns Promise resolving to signed URL.
+     */
+    getProfilePictureUrl(partnerId: string): Promise<string>;
+
+    /**
+     * Generate signed URLs for Aadhaar documents.
+     * @param partnerId - Partner's ID.
+     * @returns Promise resolving to signed URLs for front and back.
+     */
+    getAadhaarDocumentUrls(partnerId: string): Promise<{ aadharFront?: string; aadharBack?: string }>;
+
+    /**
+     * Inject signed URLs into a partner object.
+     * @param partner - The partner object.
+     */
+    injectSignedUrls(partner: IPartner): Promise<IPartner>;
+
+    /**
+     * Inject decrypted details into a partner object.
+     * @param partner - The partner object.
+     */
+    injectDecryptedDetails(partner: IPartner): IPartner;
 }

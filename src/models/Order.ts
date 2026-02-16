@@ -6,13 +6,13 @@ import { OrderStatus, PaymentStatus } from '../types';
 const OrderSchema = new Schema<IOrder>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    deliveryPartnerId: { type: Schema.Types.ObjectId, ref: 'DeliveryPartner' },
-    pickupAddress: { type: Schema.Types.ObjectId, ref: 'Address', required: true },
-    deliveryAddress: { type: Schema.Types.ObjectId, ref: 'Address', required: true },
+    partnerId: { type: Schema.Types.ObjectId, ref: 'Partner' },
+    checkInAddress: { type: Schema.Types.ObjectId, ref: 'Address', required: true },
+    checkOutAddress: { type: Schema.Types.ObjectId, ref: 'Address', required: true },
     vehicleId: { type: Schema.Types.ObjectId, ref: 'Vehicle', required: true },
     status: {
       type: String,
-      enum: [OrderStatus.PENDING, OrderStatus.CONFIRMED, OrderStatus.PICKED_UP, OrderStatus.IN_TRANSIT, OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DELIVERED, OrderStatus.CANCELLED, OrderStatus.RETURNED],
+      enum: [OrderStatus.PENDING, OrderStatus.CONFIRMED, OrderStatus.PICKED_UP, OrderStatus.IN_TRANSIT, OrderStatus.OUT_FOR_SERVICE, OrderStatus.COMPLETED, OrderStatus.CANCELLED, OrderStatus.RETURNED],
       default: OrderStatus.PENDING
     },
     paymentStatus: {
@@ -22,8 +22,8 @@ const OrderSchema = new Schema<IOrder>(
     },
     distanceKm: { type: Number, required: true },
     pricing: { type: Number, required: true },
-    estimatedDeliveryTime: { type: Date },
-    deliveredAt: { type: Date }
+    estimatedCheckOutTime: { type: Date },
+    completedAt: { type: Date }
   },
   {
     timestamps: true

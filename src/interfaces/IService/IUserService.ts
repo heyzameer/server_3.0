@@ -8,19 +8,24 @@ export interface IUserService {
   updateUserStatus(userId: string, updateData: { isActive?: boolean; isVerified?: boolean }): Promise<IUser>;
   getAllUsers(pagination: PaginationOptions, filters?: any): Promise<PaginatedResult<IUser>>;
   getUserById(userId: string): Promise<IUser>;
+  getUserWithBookings(userId: string): Promise<any>;
   deactivateUser(userId: string): Promise<IUser>;
   activateUser(userId: string): Promise<IUser>;
   addAddress(userId: string, address: Address): Promise<IAddress>;
   updateAddress(userId: string, addressId: string, address: Address): Promise<IAddress>;
   removeAddress(userId: string, addressId: string): Promise<boolean>;
   getUserAddresses(userId: string): Promise<IAddress[]>;
-  getDeliveryPartners(pagination: PaginationOptions, filters?: any): Promise<PaginatedResult<IUser>>;
-  updateDeliveryPartnerInfo(userId: string, info: any): Promise<IUser>;
-  updateDeliveryPartnerOnlineStatus(userId: string, isOnline: boolean): Promise<IUser | null>;
-  findNearbyDeliveryPartners(lantitude: number, longitude: number, radius: number): Promise<IUser[]>;
-  verifyDeliveryPartnerDocuments(userId: string): Promise<IUser>;
+  getPartners(pagination: PaginationOptions, filters?: any): Promise<PaginatedResult<IUser>>;
+  updatePartnerInfo(userId: string, info: any): Promise<IUser>;
+  updatePartnerOnlineStatus(userId: string, isOnline: boolean): Promise<IUser | null>;
+  findNearbyPartners(lantitude: number, longitude: number, radius: number): Promise<IUser[]>;
+  verifyPartnerDocuments(userId: string): Promise<IUser>;
   searchUsers(searchTerm: string, pagination: PaginationOptions): Promise<PaginatedResult<IUser>>;
   getUserStats(): Promise<any>;
   getUserAddressById(userId: string, addressId: string): Promise<IAddress>;
   setDefaultAddress(userId: string, addressId: string): Promise<IAddress | null>;
+
+  // Wishlist Methods
+  toggleWishlist(userId: string, propertyId: string): Promise<{ action: 'added' | 'removed', user: IUser }>;
+  getWishlist(userId: string): Promise<any[]>;
 }

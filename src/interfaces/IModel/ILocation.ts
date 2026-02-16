@@ -1,16 +1,20 @@
-import { LocationCoordinates } from "../../types";
-import mongoose, { Document } from "mongoose";
+import { Document, Schema } from 'mongoose';
 
 export interface ILocation extends Document {
-  userId: mongoose.Types.ObjectId;
-  orderId?: mongoose.Types.ObjectId | undefined;
-  coordinates: LocationCoordinates;
-  heading?: number;
-  speed?: number;
-  address?: string;
+  userId: Schema.Types.ObjectId;
+  coordinates: {
+    latitude: number;
+    longitude: number;
+    accuracy?: number;
+    heading?: number;
+    speed?: number;
+    altitude?: number;
+  };
   isOnline: boolean;
   batteryLevel?: number;
   networkType?: string;
+  orderId?: string;
+  timestamp?: Date;
   createdAt: Date;
   updatedAt: Date;
 }

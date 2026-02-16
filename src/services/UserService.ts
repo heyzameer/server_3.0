@@ -1,10 +1,11 @@
-// import { UserRepository } from '../repositories/UserRepository';
+import { User } from '../models/User';
 import { UserRole, PaginationOptions, PaginatedResult, Address } from '../types';
 import { createError } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
 import { injectable, inject } from 'tsyringe';
 import { IUserService } from '../interfaces/IService/IUserService';
 import { IUserRepository } from '../interfaces/IRepository/IUserRepository';
+import { IOrderRepository } from '../interfaces/IRepository/IOrderRepository';
 import { IUser } from '../interfaces/IModel/IUser';
 import { comparePassword, hashPassword } from '../utils/helpers';
 import { IAddressRepository } from '../interfaces/IRepository/IAddressRepository';
@@ -12,6 +13,7 @@ import { IAddress } from '../interfaces/IModel/IAddress';
 import { UpdateProfileDto } from '../dtos/user.dto';
 import { HttpStatus } from '../enums/HttpStatus';
 import { ResponseMessages } from '../enums/ResponseMessages';
+import { IPropertyService } from '../interfaces/IService/IPropertyService';
 
 /**
  * Service for handling user-related operations.
@@ -22,7 +24,9 @@ export class UserService implements IUserService {
 
   constructor(
     @inject('UserRepository') private userRepository: IUserRepository,
-    @inject('addressRepository') private addressRepository: IAddressRepository
+    @inject('addressRepository') private addressRepository: IAddressRepository,
+    @inject('OrderRepository') private orderRepository: IOrderRepository,
+    @inject('PropertyService') private propertyService: IPropertyService
   ) { }
 
   /**
@@ -188,6 +192,29 @@ export class UserService implements IUserService {
       return user;
     } catch (error) {
       logger.error('Get user by ID failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get user by ID with their recent bookings.
+   */
+  async getUserWithBookings(userId: string): Promise<any> {
+    try {
+      const user = await this.userRepository.findById(userId);
+      if (!user) {
+        throw createError(ResponseMessages.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
+      }
+
+      const bookings = await this.orderRepository.findByCustomer(userId, { page: 1, limit: 10 });
+
+      return {
+        ...user.toObject(),
+        bookings: bookings.data,
+        totalBookings: bookings.pagination.total
+      };
+    } catch (error) {
+      logger.error('Get user with bookings failed:', error);
       throw error;
     }
   }
@@ -364,9 +391,9 @@ export class UserService implements IUserService {
   }
 
   /**
-   * Get delivery partners based on filters.
+   * Get partners based on filters.
    */
-  async getDeliveryPartners(
+  async getPartners(
     pagination: PaginationOptions,
     filters?: {
       isOnline?: boolean;
@@ -375,7 +402,7 @@ export class UserService implements IUserService {
     }
   ): Promise<PaginatedResult<IUser>> {
     try {
-      const result = await this.userRepository.findDeliveryPartners(
+      const result = await this.userRepository.findPartners(
         filters?.isOnline,
         pagination
       );
@@ -411,7 +438,7 @@ export class UserService implements IUserService {
 
       return paginatedResult;
     } catch (error) {
-      logger.error('Get delivery partners failed:', error);
+      logger.error('Get partners failed:', error);
       throw error;
     }
   }
@@ -419,10 +446,10 @@ export class UserService implements IUserService {
   /**
    * Update delivery partner information.
    */
-  async updateDeliveryPartnerInfo(
+  async updatePartnerInfo(
     userId: string,
     updateData: {
-      vehicleType?: string;
+      vehicleType?: string; // TBD if relevant for property management, keeping key for now
       vehicleNumber?: string;
       licenseNumber?: string;
       licenseExpiry?: Date;
@@ -436,12 +463,12 @@ export class UserService implements IUserService {
       }
 
       if (user.role !== UserRole.PARTNER) {
-        throw createError(ResponseMessages.NOT_DELIVERY_PARTNER, HttpStatus.BAD_REQUEST);
+        throw createError(ResponseMessages.NOT_PARTNER, HttpStatus.BAD_REQUEST);
       }
 
       const updateFields: any = {};
       Object.keys(updateData).forEach(key => {
-        updateFields[`deliveryPartnerInfo.${key}`] = (updateData as any)[key];
+        updateFields[`partnerInfo.${key}`] = (updateData as any)[key];
       });
 
       const updatedUser = await this.userRepository.update(userId, updateFields);
@@ -449,10 +476,10 @@ export class UserService implements IUserService {
         throw createError(ResponseMessages.PARTNER_INFO_UPDATE_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
-      logger.info(`Delivery partner info updated for user: ${userId}`);
+      logger.info(`Partner info updated for user: ${userId}`);
       return updatedUser;
     } catch (error) {
-      logger.error('Update delivery partner info failed:', error);
+      logger.error('Update partner info failed:', error);
       throw error;
     }
   }
@@ -460,22 +487,22 @@ export class UserService implements IUserService {
   /**
    * Update online status for a partner.
    */
-  async updateDeliveryPartnerOnlineStatus(userId: string, isOnline: boolean): Promise<IUser> {
+  async updatePartnerOnlineStatus(userId: string, isOnline: boolean): Promise<IUser> {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user || user.role !== UserRole.PARTNER) {
         throw createError(ResponseMessages.VALID_PARTNER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
-      const updatedUser = await this.userRepository.updateDeliveryPartnerOnlineStatus(userId, isOnline);
+      const updatedUser = await this.userRepository.updatePartnerOnlineStatus(userId, isOnline);
       if (!updatedUser) {
         throw createError(ResponseMessages.ONLINE_STATUS_UPDATE_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
-      logger.info(`Delivery partner online status updated: ${userId} - ${isOnline}`);
+      logger.info(`Partner online status updated: ${userId} - ${isOnline}`);
       return updatedUser;
     } catch (error) {
-      logger.error('Update delivery partner online status failed:', error);
+      logger.error('Update partner online status failed:', error);
       throw error;
     }
   }
@@ -483,20 +510,20 @@ export class UserService implements IUserService {
   /**
    * Find delivery partners within a specific radius.
    */
-  async findNearbyDeliveryPartners(
+  async findNearbyPartners(
     latitude: number,
     longitude: number,
     radiusKm: number = 10
   ): Promise<IUser[]> {
     try {
-      const deliveryPartners = await this.userRepository.findDeliveryPartnersNearby(
+      const partners = await this.userRepository.findPartnersNearby(
         latitude,
         longitude,
         radiusKm
       );
-      return deliveryPartners;
+      return partners;
     } catch (error) {
-      logger.error('Find nearby delivery partners failed:', error);
+      logger.error('Find nearby partners failed:', error);
       throw error;
     }
   }
@@ -504,25 +531,25 @@ export class UserService implements IUserService {
   /**
    * Mark delivery partner documents as verified.
    */
-  async verifyDeliveryPartnerDocuments(userId: string): Promise<IUser> {
+  async verifyPartnerDocuments(userId: string): Promise<IUser> {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user || user.role !== UserRole.PARTNER) {
-        throw createError(ResponseMessages.DELIVERY_PARTNER_NOT_FOUND, HttpStatus.NOT_FOUND);
+        throw createError(ResponseMessages.PARTNER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
       const updatedUser = await this.userRepository.update(userId, {
-        'deliveryPartnerInfo.documentsVerified': true,
+        'partnerInfo.documentsVerified': true,
       });
 
       if (!updatedUser) {
         throw createError(ResponseMessages.DOCUMENTS_VERIFY_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
-      logger.info(`Delivery partner documents verified: ${userId}`);
+      logger.info(`Partner documents verified: ${userId}`);
       return updatedUser;
     } catch (error) {
-      logger.error('Verify delivery partner documents failed:', error);
+      logger.error('Verify partner documents failed:', error);
       throw error;
     }
   }
@@ -530,22 +557,22 @@ export class UserService implements IUserService {
   /**
    * Update the rating for a delivery partner.
    */
-  async updateDeliveryPartnerRating(userId: string, newRating: number): Promise<IUser> {
+  async updatePartnerRating(userId: string, newRating: number): Promise<IUser> {
     try {
       const user = await this.userRepository.findById(userId);
       if (!user || user.role !== UserRole.PARTNER) {
-        throw createError(ResponseMessages.DELIVERY_PARTNER_NOT_FOUND, HttpStatus.NOT_FOUND);
+        throw createError(ResponseMessages.PARTNER_NOT_FOUND, HttpStatus.NOT_FOUND);
       }
 
-      const updatedUser = await this.userRepository.updateDeliveryPartnerRating(userId, newRating);
+      const updatedUser = await this.userRepository.updatePartnerRating(userId, newRating);
       if (!updatedUser) {
         throw createError(ResponseMessages.RATING_UPDATE_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
       }
 
-      logger.info(`Delivery partner rating updated: ${userId} - ${newRating}`);
+      logger.info(`Partner rating updated: ${userId} - ${newRating}`);
       return updatedUser;
     } catch (error) {
-      logger.error('Update delivery partner rating failed:', error);
+      logger.error('Update partner rating failed:', error);
       throw error;
     }
   }
@@ -576,11 +603,11 @@ export class UserService implements IUserService {
       const activeUsers = await this.userRepository.count({ isActive: true });
       const verifiedUsers = await this.userRepository.count({ isVerified: true });
       const customerCount = await this.userRepository.count({ role: UserRole.CUSTOMER });
-      const deliveryPartnerCount = await this.userRepository.count({ role: UserRole.PARTNER });
+      const partnerCount = await this.userRepository.count({ role: UserRole.PARTNER });
       const adminCount = await this.userRepository.count({ role: UserRole.ADMIN });
-      const onlineDeliveryPartners = await this.userRepository.count({
+      const onlinePartners = await this.userRepository.count({
         role: UserRole.PARTNER,
-        'deliveryPartnerInfo.isOnline': true,
+        'partnerInfo.isOnline': true,
       });
 
       return {
@@ -589,15 +616,80 @@ export class UserService implements IUserService {
         verifiedUsers,
         usersByRole: {
           customers: customerCount,
-          deliveryPartners: deliveryPartnerCount,
+          partners: partnerCount,
           admins: adminCount,
         },
-        onlineDeliveryPartners,
+        onlinePartners,
         verificationRate: totalUsers > 0 ? (verifiedUsers / totalUsers) * 100 : 0,
         activationRate: totalUsers > 0 ? (activeUsers / totalUsers) * 100 : 0,
       };
     } catch (error) {
       logger.error('Get user stats failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Toggle a property in the user's wishlist.
+   */
+  async toggleWishlist(userId: string, propertyId: string): Promise<{ action: 'added' | 'removed', user: IUser }> {
+    try {
+      const user = await this.userRepository.findById(userId);
+      if (!user) {
+        throw createError(ResponseMessages.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
+      }
+
+      const wishlist = user.wishlist || [];
+      const index = wishlist.findIndex(id => id.toString() === propertyId);
+
+      let action: 'added' | 'removed';
+      if (index === -1) {
+        wishlist.push(propertyId as any);
+        action = 'added';
+      } else {
+        wishlist.splice(index, 1);
+        action = 'removed';
+      }
+
+      const updatedUser = await this.userRepository.update(userId, { wishlist });
+      if (!updatedUser) {
+        throw createError(ResponseMessages.GENERIC_SUCCESS, HttpStatus.INTERNAL_SERVER_ERROR);
+      }
+
+      return { action, user: updatedUser };
+    } catch (error) {
+      logger.error('Toggle wishlist failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get the current user's wishlist with populated property details.
+   */
+  async getWishlist(userId: string): Promise<any[]> {
+    try {
+      const user = await User.findById(userId).populate('wishlist');
+
+      if (!user) {
+        throw createError(ResponseMessages.USER_NOT_FOUND, HttpStatus.NOT_FOUND);
+      }
+
+      const wishlistItems = user.wishlist || [];
+
+      // Inject signed URLs and min prices for each property in wishlist
+      const processedWishlist = await Promise.all(wishlistItems.map(async (item: any) => {
+        // If populated, item will be a property object
+        if (item && item._id) {
+          let processed = await this.propertyService.injectSignedUrls(item);
+          processed = await this.propertyService.injectMinPrice(processed);
+          return processed;
+        }
+        return item;
+      }));
+
+      return processedWishlist;
+    } catch (error) {
+      logger.error('Get wishlist failed:', error);
       throw error;
     }
   }

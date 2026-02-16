@@ -11,7 +11,7 @@ const WalletSchema = new Schema<IWallet>(
     ownerModel: {
       type: String,
       required: true,
-      enum: ['User', 'DeliveryPartner']
+      enum: ['User', 'Partner']
     },
     balance: {
       type: Number,

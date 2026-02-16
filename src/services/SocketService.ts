@@ -80,10 +80,10 @@ export class SocketService {
     // Join role-based rooms
     socket.join(`role:${role}`);
 
-    // Join delivery partners to location tracking room
+    // Join partners to location tracking room
     if (role === UserRole.PARTNER) {
-      socket.join('PARTNERs');
-      this.handleDeliveryPartnerConnection(socket);
+      socket.join('partners');
+      this.handlePartnerConnection(socket);
     }
 
     // Join customers to customer room
@@ -109,7 +109,7 @@ export class SocketService {
     const userId = socket.user!.userId;
     const role = socket.user!.role;
 
-    // Location tracking events (for delivery partners)
+    // Location tracking events (for partners)
     if (role === UserRole.PARTNER) {
       socket.on('location_update', async (data) => {
         await this.handleLocationUpdate(socket, data);
@@ -142,21 +142,21 @@ export class SocketService {
     });
   }
 
-  private async handleDeliveryPartnerConnection(socket: AuthenticatedSocket): Promise<void> {
+  private async handlePartnerConnection(socket: AuthenticatedSocket): Promise<void> {
     const userId = socket.user!.userId;
 
     try {
-      // Update delivery partner online status
-      await this.userRepository.updateDeliveryPartnerOnlineStatus(userId, true);
+      // Update partner online status
+      await this.userRepository.updatePartnerOnlineStatus(userId, true);
 
-      // Broadcast to admins that a delivery partner came online
-      this.io.to('admins').emit('PARTNER_online', {
+      // Broadcast to admins that a partner came online
+      this.io.to('admins').emit('partner_online', {
         userId,
         timestamp: new Date(),
       });
 
     } catch (error) {
-      logger.error('Error handling delivery partner connection:', error);
+      logger.error('Error handling partner connection:', error);
     }
   }
 
@@ -165,18 +165,16 @@ export class SocketService {
 
     try {
       // Update location in database
-      await this.locationRepository.updateUserLocation(userId, data.coordinates, {
-        heading: data.heading,
-        speed: data.speed,
+      await this.locationRepository.updateUserLocation(userId, { ...data.coordinates, heading: data.heading, speed: data.speed }, {
         isOnline: true,
         batteryLevel: data.batteryLevel,
         networkType: data.networkType,
         orderId: data.orderId,
       });
 
-      // If delivery partner is on an active order, emit location to order room
+      // If partner is on an active order, emit location to order room
       if (data.orderId) {
-        socket.to(`order:${data.orderId}`).emit('delivery_location_update', {
+        socket.to(`order:${data.orderId}`).emit('partner_location_update', {
           orderId: data.orderId,
           location: {
             coordinates: data.coordinates,
@@ -188,7 +186,7 @@ export class SocketService {
       }
 
       // Emit to admins for monitoring
-      this.io.to('admins').emit('PARTNER_location', {
+      this.io.to('admins').emit('partner_location', {
         userId,
         location: data.coordinates,
         orderId: data.orderId,
@@ -205,10 +203,10 @@ export class SocketService {
     const userId = socket.user!.userId;
 
     try {
-      await this.userRepository.updateDeliveryPartnerOnlineStatus(userId, data.isOnline);
+      await this.userRepository.updatePartnerOnlineStatus(userId, data.isOnline);
 
       // Broadcast status change
-      this.io.to('admins').emit('PARTNER_status_change', {
+      this.io.to('admins').emit('partner_status_change', {
         userId,
         isOnline: data.isOnline,
         timestamp: new Date(),
@@ -262,13 +260,13 @@ export class SocketService {
     // Remove from connected users
     this.connectedUsers.delete(userId);
 
-    // Update delivery partner status if applicable
+    // Update partner status if applicable
     if (role === UserRole.PARTNER) {
-      this.userRepository.updateDeliveryPartnerOnlineStatus(userId, false)
-        .catch(error => logger.error('Error updating delivery partner offline status:', error));
+      this.userRepository.updatePartnerOnlineStatus(userId, false)
+        .catch(error => logger.error('Error updating partner offline status:', error));
 
       // Notify admins
-      this.io.to('admins').emit('PARTNER_offline', {
+      this.io.to('admins').emit('partner_offline', {
         userId,
         timestamp: new Date(),
       });
@@ -294,8 +292,8 @@ export class SocketService {
     });
   }
 
-  public async broadcastToDeliveryPartners(event: string, data: any): Promise<void> {
-    this.io.to('PARTNERs').emit(event, data);
+  public async broadcastToPartners(event: string, data: any): Promise<void> {
+    this.io.to('partners').emit(event, data);
   }
 
   public async broadcastToAdmins(event: string, data: any): Promise<void> {

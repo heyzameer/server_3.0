@@ -11,9 +11,11 @@ import { container } from '../container/container';
 import { updateProfileSchema } from '../validators/user';
 // import { addAddressSchema, getUsersSchema, updateAddressSchema, updateDeliveryPartnerInfoSchema } from '../validators/user';
 import { userUpload } from '../middleware/upload';
+import { WishlistController } from '../controllers/WishlistController';
 
 const router = Router();
 const userController = container.resolve(UserController);
+const wishlistController = container.resolve(WishlistController);
 
 // All routes require authentication
 router.use(authenticate);
@@ -21,6 +23,10 @@ router.use(authenticate);
 // Profile routes
 router.get('/profile', userController.getProfile);
 router.put('/profile', userUpload, validate(updateProfileSchema), userController.updateProfile);
+
+// Wishlist routes
+router.get('/wishlist', wishlistController.getWishlist);
+router.post('/wishlist/toggle', wishlistController.toggleWishlist);
 
 // // Address routes
 // router.get('/addresses', userController.getAddresses);

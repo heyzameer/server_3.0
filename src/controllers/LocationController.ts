@@ -9,10 +9,12 @@ import {
   CleanupOldLocationsDto
 } from '../dtos/location.dto';
 import { LocationCoordinates } from '../types';
+import { ResponseMessages } from '../enums/ResponseMessages';
+import { HttpStatus } from '../enums/HttpStatus';
 
 /**
  * Controller for location-related operations.
- * Handles real-time tracking, history, and geographical analytics for delivery partners.
+ * Handles real-time tracking, history, and geographical analytics for partners.
  */
 @injectable()
 export class LocationController {
@@ -37,7 +39,7 @@ export class LocationController {
 
     const validation = await this.locationService.validateLocationUpdate(userId, locationCoords);
     if (!validation.isValid) {
-      return sendError(res, validation.reason || 'Invalid location update', 400);
+      return sendError(res, validation.reason || ResponseMessages.INVALID_REQUEST, HttpStatus.BAD_REQUEST);
     }
 
     const location = await this.locationService.updateUserLocation(
@@ -46,7 +48,7 @@ export class LocationController {
       additionalData
     );
 
-    sendSuccess(res, 'Location updated successfully', { location });
+    sendSuccess(res, ResponseMessages.GENERIC_SUCCESS, { location });
   });
 
   /**
@@ -59,10 +61,10 @@ export class LocationController {
     const location = await this.locationService.getLatestLocation(targetUserId);
 
     if (!location) {
-      return sendError(res, 'No location found', 404);
+      return sendError(res, ResponseMessages.NOT_FOUND, HttpStatus.NOT_FOUND);
     }
 
-    sendSuccess(res, 'Latest location retrieved successfully', { location });
+    sendSuccess(res, ResponseMessages.GENERIC_SUCCESS, { location });
   });
 
   /**
@@ -82,26 +84,26 @@ export class LocationController {
       pagination
     );
 
-    sendSuccess(res, 'Location history retrieved successfully', { result });
+    sendSuccess(res, ResponseMessages.GENERIC_SUCCESS, { result });
   });
 
   /**
-   * Find delivery partners near a specific location.
+   * Find partners near a specific location.
    */
-  findNearbyDeliveryPartners = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+  findNearbyPartners = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
     const { latitude, longitude, radius } = req.query;
 
     if (!latitude || !longitude) {
-      return sendError(res, 'Latitude and longitude are required', 400);
+      return sendError(res, ResponseMessages.INVALID_REQUEST, HttpStatus.BAD_REQUEST);
     }
 
-    const deliveryPartners = await this.locationService.findNearbyDeliveryPartners(
+    const partners = await this.locationService.findNearbyPartners(
       parseFloat(latitude as string),
       parseFloat(longitude as string),
       radius ? parseFloat(radius as string) : 10
     );
 
-    sendSuccess(res, 'Nearby delivery partners found', { deliveryPartners });
+    sendSuccess(res, ResponseMessages.NEARBY_PARTNERS_FOUND, { partners });
   });
 
   /**
@@ -112,50 +114,50 @@ export class LocationController {
 
     const tracking = await this.locationService.trackOrderLocation(orderId);
 
-    sendSuccess(res, 'Order tracking retrieved successfully', tracking);
+    sendSuccess(res, ResponseMessages.GENERIC_SUCCESS, tracking);
   });
 
   /**
-   * Update the online/active status of a delivery partner.
+   * Update the online/active status of a partner.
    */
   updateOnlineStatus = asyncHandler(async (req: Request<any, any, OnlineStatusDto>, res: Response, _next: NextFunction) => {
     const userId = req.user!.userId;
     const { isOnline } = req.body;
 
-    await this.locationService.updateDeliveryPartnerOnlineStatus(userId, isOnline);
+    await this.locationService.updatePartnerOnlineStatus(userId, isOnline);
 
-    sendSuccess(res, 'Online status updated successfully');
+    sendSuccess(res, ResponseMessages.ONLINE_STATUS_UPDATED);
   });
 
   /**
-   * Get a list of all currently active delivery partners.
+   * Get a list of all currently active partners.
    */
-  getActiveDeliveryPartners = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
-    const activePartners = await this.locationService.getActiveDeliveryPartners();
+  getActivePartners = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const activePartners = await this.locationService.getActivePartners();
 
-    sendSuccess(res, 'Active delivery partners retrieved successfully', { activePartners });
+    sendSuccess(res, ResponseMessages.GENERIC_SUCCESS, { activePartners });
   });
 
   /**
-   * Get movement statistics for a delivery partner.
+   * Get movement statistics for a partner.
    */
   getMovementStats = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
     const { userId } = req.params;
     const { startDate, endDate } = req.query;
 
     if (!startDate || !endDate) {
-      return sendError(res, 'Start date and end date are required', 400);
+      return sendError(res, ResponseMessages.INVALID_REQUEST, HttpStatus.BAD_REQUEST);
     }
 
     const targetUserId = userId || req.user!.userId;
 
-    const stats = await this.locationService.getDeliveryPartnerMovementStats(
+    const stats = await this.locationService.getPartnerMovementStats(
       targetUserId,
       new Date(startDate as string),
       new Date(endDate as string)
     );
 
-    sendSuccess(res, 'Movement statistics retrieved successfully', { stats });
+    sendSuccess(res, ResponseMessages.GENERIC_SUCCESS, { stats });
   });
 
   /**
@@ -170,17 +172,17 @@ export class LocationController {
       endDate ? new Date(endDate as string) : undefined
     );
 
-    sendSuccess(res, 'Location analytics retrieved successfully', { analytics });
+    sendSuccess(res, ResponseMessages.GENERIC_SUCCESS, { analytics });
   });
 
   /**
-   * Get data for a delivery heatmap based on geographical bounds.
+   * Get data for a activity heatmap based on geographical bounds and online partners.
    */
-  getDeliveryHeatmap = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+  getActivityHeatmap = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
     const { northEastLat, northEastLng, southWestLat, southWestLng, startDate, endDate } = req.query;
 
     if (!northEastLat || !northEastLng || !southWestLat || !southWestLng) {
-      return sendError(res, 'Bounds coordinates are required', 400);
+      return sendError(res, ResponseMessages.INVALID_REQUEST, HttpStatus.BAD_REQUEST);
     }
 
     const bounds = {
@@ -194,13 +196,13 @@ export class LocationController {
       }
     };
 
-    const heatmapData = await this.locationService.getDeliveryHeatmap(
+    const heatmapData = await this.locationService.getPartnerHeatmap(
       bounds,
       startDate ? new Date(startDate as string) : undefined,
       endDate ? new Date(endDate as string) : undefined
     );
 
-    sendSuccess(res, 'Delivery heatmap data retrieved successfully', { heatmapData });
+    sendSuccess(res, ResponseMessages.GENERIC_SUCCESS, { heatmapData });
   });
 
   /**
@@ -211,6 +213,6 @@ export class LocationController {
 
     const deletedCount = await this.locationService.cleanupOldLocations(daysOld || 30);
 
-    sendSuccess(res, 'Old locations cleaned up successfully', { deletedCount });
+    sendSuccess(res, ResponseMessages.GENERIC_SUCCESS, { deletedCount });
   });
 }
