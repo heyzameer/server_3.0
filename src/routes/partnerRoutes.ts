@@ -4,7 +4,7 @@ import { PropertyController } from '../controllers/PropertyController';
 import { validate } from '../middleware/validation';
 import { authLimiter } from '../middleware/rateLimit';
 import { container } from '../container/container';
-import { registerPartnerSchema, partnerAdharSchema, partnerLoginOtpSchema, partnerRegistrationSchema, partnerVerifyOtpSchema } from '../validators/partner';
+import { registerPartnerSchema, partnerLoginOtpSchema, partnerVerifyOtpSchema } from '../validators/partner';
 import { propertyRegistrationSchema } from '../validators/property';
 
 import { authenticatePartner } from '../middleware/partnerAuth';
@@ -14,6 +14,8 @@ import { handleUploadError, partnerUpload } from '../middleware/upload';
 const router = Router();
 const partnerController = container.resolve(PartnerController);
 const propertyController = container.resolve(PropertyController);
+import { BookingController } from '../controllers/BookingController';
+const bookingController = container.resolve(BookingController);
 
 // Public routes
 router.post('/register-partner', authLimiter, validate(registerPartnerSchema), partnerController.registerPartner);
@@ -34,5 +36,11 @@ router.post('/verify-adhar', authLimiter, partnerUpload, handleUploadError, part
 // Image access routes (signed URLs)
 router.get('/profile-picture', partnerController.getProfilePicture);
 router.get('/aadhaar-documents', partnerController.getAadhaarDocuments);
+
+// Booking management
+router.get('/bookings', bookingController.getPartnerBookings);
+router.get('/bookings/:bookingId', bookingController.getPartnerBookingDetails);
+router.patch('/bookings/:bookingId/approve', bookingController.approveBooking);
+router.patch('/bookings/:bookingId/reject', bookingController.rejectBooking);
 
 export default router;

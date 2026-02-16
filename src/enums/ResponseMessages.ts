@@ -24,6 +24,7 @@ export enum ResponseMessages {
     VALID_PARTNER_NOT_FOUND = 'Valid partner not found',
     ONLINE_STATUS_UPDATE_FAILED = 'Failed to update online status',
     PARTNER_NOT_FOUND = 'Partner not found',
+    PROPERTY_NOT_FOUND = 'Property not found',
     // Unified PARTNER_NOT_FOUND below
     // DELIVERY_PARTNER_NOT_FOUND = 'Delivery partner not found',
     DOCUMENTS_VERIFY_FAILED = 'Failed to verify documents',

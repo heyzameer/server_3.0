@@ -152,10 +152,7 @@ export const propertyRegistrationSchema = yup.object().shape({
             coordinates: yup.array().of(yup.number()).length(2).required('Coordinates are required'),
         })
         .required('Location is required'),
-    pricePerNight: yup.number().required('Price per night is required').min(100),
-    maxGuests: yup.number().required('Max guests is required').min(1),
-    totalRooms: yup.number().required('Total rooms is required').min(1),
-    availableRooms: yup.number().required('Available rooms is required').min(0),
+    // pricePerNight, maxGuests, totalRooms, availableRooms moved to Room model
     ownershipProof: yup.string().optional().url(),
     ownerKYC: yup.string().optional().url(),
     gstNumber: yup.string().optional(),
