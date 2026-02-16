@@ -6,6 +6,7 @@ import { logger } from '../utils/logger';
 @injectable()
 export class RedisService {
     private client: Redis;
+    private lastErrorLog: number = 0;
 
     constructor() {
         this.client = new Redis({
@@ -13,13 +14,19 @@ export class RedisService {
             port: config.redis.port,
             password: config.redis.password,
             retryStrategy: (times) => {
-                const delay = Math.min(times * 50, 2000);
-                return delay;
-            }
+                // Max retry delay of 10 seconds, starting from 100ms
+                return Math.min(times * 100, 10000);
+            },
+            maxRetriesPerRequest: null, // Keep trying to connect
         });
 
         this.client.on('error', (err) => {
-            logger.error('Redis Client Error', err);
+            // Only log once every 30 seconds to avoid spamming
+            const now = Date.now();
+            if (!this.lastErrorLog || now - this.lastErrorLog > 30000) {
+                logger.error('Redis Connection Error (retrying...):', err.message);
+                this.lastErrorLog = now;
+            }
         });
 
         this.client.on('connect', () => {
