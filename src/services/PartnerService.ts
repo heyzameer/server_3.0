@@ -880,7 +880,7 @@ export class PartnerService implements IPartnerService {
               return decrypt(text);
             }
             return text;
-          } catch (err) {
+          } catch {
             return text;
           }
         };

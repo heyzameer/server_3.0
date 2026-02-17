@@ -67,7 +67,7 @@ export class PackageService implements IPackageService {
 
                 const occupiedSlots = bookings.reduce((sum, b) => sum + (b.totalGuests || 0), 0);
                 pkgObj.remainingSlots = Math.max(0, pkg.maxPersons - occupiedSlots);
-            } catch (error) {
+            } catch {
                 pkgObj.remainingSlots = pkg.maxPersons;
             }
         } else {
