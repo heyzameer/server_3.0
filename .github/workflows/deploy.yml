@@ -99,18 +99,18 @@ jobs:
             
             # Stop and remove old containers
             echo "Stopping old containers..."
-            docker-compose down || true
+            docker-compose down || docker compose down || true
             
             # Start new containers
             echo "Starting new containers..."
-            docker-compose up -d
+            docker-compose up -d || docker compose up -d
             
             # Wait for containers to be healthy
             echo "Waiting for containers to be healthy..."
-            sleep 10
+            sleep 15
             
             # Check container status
-            docker-compose ps
+            docker-compose ps || docker compose ps
             
             # Clean up old images (keep last 3)
             echo "Cleaning up old Docker images..."
@@ -125,21 +125,17 @@ jobs:
           sleep 30
           
           echo "Performing health check..."
-          MAX_RETRIES=5
-          RETRY_COUNT=0
-          
-          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            if curl --silent --fail https://api.letsgoto.in/health; then
+          # Retry loop for health check
+          for i in {1..10}; do
+            if curl --silent --fail https://api.letsgoto.in/api/v1/health; then
               echo "✓ Health check passed!"
               exit 0
-            else
-              echo "Health check attempt $((RETRY_COUNT + 1)) failed, retrying..."
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-              sleep 10
             fi
+            echo "Health check attempt $i failed, retrying in 10s..."
+            sleep 10
           done
           
-          echo "✗ Health check failed after $MAX_RETRIES attempts!"
+          echo "✗ Health check failed after multiple attempts!"
           exit 1
 
       - name: Rollback on failure
