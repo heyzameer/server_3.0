@@ -126,20 +126,20 @@ jobs:
             
             # Login to ECR
             echo "Logging in to Amazon ECR..."
-            aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+            aws ecr get-login-password --region ${{ env.AWS_REGION }} | sudo docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
             
             echo "Pulling latest Docker image..."
-            docker pull ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+            sudo docker pull ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
             
             echo "Fetching environment variables..."
             bash scripts/fetch-env-from-aws.sh || echo "Warning: fetch script failed"
             
             echo "Restarting containers..."
-            docker-compose down || true
-            docker-compose up -d
+            sudo docker-compose down || true
+            sudo docker-compose up -d
             
             sleep 15
-            docker-compose ps
+            sudo docker-compose ps
             echo "=== Deployment completed successfully! ==="
           ENDSSH
 
@@ -163,12 +163,12 @@ jobs:
           echo "Deployment failed, initiating rollback..."
           ssh ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'ENDSSH'
             cd ${{ env.APP_DIR }}
-            PREVIOUS_TAG=$(docker images ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }} --format "{{.Tag}}" | grep -v latest | head -n 2 | tail -n 1)
+            PREVIOUS_TAG=$(sudo docker images ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }} --format "{{.Tag}}" | grep -v latest | head -n 2 | tail -n 1)
             if [ -n "$PREVIOUS_TAG" ]; then
               echo "Rolling back to: $PREVIOUS_TAG"
-              docker-compose down || true
-              docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$PREVIOUS_TAG ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
-              docker-compose up -d
+              sudo docker-compose down || true
+              sudo docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$PREVIOUS_TAG ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+              sudo docker-compose up -d
             fi
           ENDSSH
 
