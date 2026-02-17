@@ -8,6 +8,22 @@ param (
 # RE-ADDED the leading slash for "Fully Qualified Name"
 $Prefix = "/travel-hub/$Environment"
 
+# 1. Choose which environment to upload
+Write-Host "Select Environment to Upload:" -ForegroundColor Cyan
+Write-Host "1. Local (.env)"
+Write-Host "2. Production (.env.production)"
+$choice = Read-Host "Choice (1 or 2)"
+
+if ($choice -eq "2") {
+    $EnvFile = ".env.production"
+    $Prefix = "/travel-hub/production"
+    $Environment = "production" # Update the Environment variable as well
+} else {
+    $EnvFile = ".env"
+    $Prefix = "/travel-hub/development" # Changed to development for local, assuming this is the intent
+    $Environment = "development" # Update the Environment variable as well
+}
+
 if (-not (Test-Path $EnvFile)) {
     Write-Host "[ERROR] Environment file '$EnvFile' not found!" -ForegroundColor Red
     exit 1

@@ -1,4 +1,5 @@
 .env
+.env.production
 .env.backup*
 /dist
 /node_modules
