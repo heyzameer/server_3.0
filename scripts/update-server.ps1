@@ -11,15 +11,16 @@ Write-Host "----------------------------------------------------------" -Foregro
 # Define commands as a single Linux-friendly string
 # IMPORTANT: No Windows CRLF in the string body sent to SSH
 $commands = "cd /opt/travel-hub && " +
-            "echo '>>> Pulling new code from GitHub...' && " +
-            "git pull origin dev && " +
+            "echo '>>> Pulling new code from GitHub on dev branch...' && " +
+            "git fetch origin dev && " +
+            "git reset --hard origin/dev && " +
             "echo '>>> Fetching environment variables from AWS Parameter Store...' && " +
             "bash scripts/fetch-env-from-aws.sh && " +
             "echo '>>> Rebuilding and restarting containers...' && " +
+            "sudo docker-compose down && " +
             "sudo docker-compose up -d --build && " +
             "echo '>>> Cleaning up old docker images...' && " +
             "sudo docker image prune -f && " +
-            "echo '>>> System Status:' && " +
             "sudo docker ps"
 
 Write-Host "Connecting to server at $IP and executing update..." -ForegroundColor Yellow
