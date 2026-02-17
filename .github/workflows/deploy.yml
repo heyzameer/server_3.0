@@ -79,6 +79,27 @@ jobs:
           echo "Image pushed successfully!"
           echo "IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
 
+      - name: Get GitHub IP
+        id: ip
+        run: echo "ipv4=$(curl -s https://checkip.amazonaws.com)" >> $GITHUB_OUTPUT
+
+      - name: Add GitHub IP to SSH Whitelist
+        run: |
+          # Fetch SG ID linked to the instance
+          SG_ID=$(aws ec2 describe-instances --filters "Name=ip-address,Values=${{ env.EC2_HOST }}" --query "Reservations[*].Instances[*].SecurityGroups[*].GroupId" --output text | awk '{print $1}')
+          echo "SG_ID=$SG_ID" >> $GITHUB_ENV
+          
+          if [ -z "$SG_ID" ]; then
+            echo "Error: Could not find Security Group for host ${{ env.EC2_HOST }}"
+            exit 1
+          fi
+          
+          aws ec2 authorize-security-group-ingress \
+            --group-id $SG_ID \
+            --protocol tcp \
+            --port 22 \
+            --cidr ${{ steps.ip.outputs.ipv4 }}/32 || true
+
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -90,55 +111,35 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
+          BRANCH_NAME: ${{ github.ref_name }}
         run: |
-          ssh ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'ENDSSH'
+          ssh ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << ENDSSH
             set -e
+            echo "=== Starting deployment on branch: $BRANCH_NAME ==="
             
-            echo "=== Starting deployment ==="
-            
-            # Navigate to app directory
             cd ${{ env.APP_DIR }}
             
-            # Pull latest code
+            # Pull exactly the branch that triggered this workflow
             echo "Pulling latest code from GitHub..."
             git fetch origin
-            git reset --hard origin/main
+            git reset --hard origin/$BRANCH_NAME
             
             # Login to ECR
             echo "Logging in to Amazon ECR..."
             aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
             
-            # Pull latest Docker image
             echo "Pulling latest Docker image..."
             docker pull ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
             
-            # Fetch environment variables from AWS Parameter Store
-            echo "Fetching environment variables from AWS Parameter Store..."
-            if [ -f scripts/fetch-env-from-aws.sh ]; then
-              bash scripts/fetch-env-from-aws.sh
-            else
-              echo "Warning: fetch-env-from-aws.sh not found, using existing .env"
-            fi
+            echo "Fetching environment variables..."
+            bash scripts/fetch-env-from-aws.sh || echo "Warning: fetch script failed"
             
-            # Stop and remove old containers
-            echo "Stopping old containers..."
-            docker-compose down || docker compose down || true
+            echo "Restarting containers..."
+            docker-compose down || true
+            docker-compose up -d
             
-            # Start new containers
-            echo "Starting new containers..."
-            docker-compose up -d || docker compose up -d
-            
-            # Wait for containers to be healthy
-            echo "Waiting for containers to be healthy..."
             sleep 15
-            
-            # Check container status
-            docker-compose ps || docker compose ps
-            
-            # Clean up old images (keep last 3)
-            echo "Cleaning up old Docker images..."
-            docker images ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }} --format "{{.ID}} {{.CreatedAt}}" | tail -n +4 | awk '{print $1}' | xargs -r docker rmi -f || true
-            
+            docker-compose ps
             echo "=== Deployment completed successfully! ==="
           ENDSSH
 
@@ -146,19 +147,14 @@ jobs:
         run: |
           echo "Waiting for application to start..."
           sleep 30
-          
-          echo "Performing health check..."
-          # Retry loop for health check
           for i in {1..10}; do
             if curl --silent --fail https://api.letsgoto.in/api/v1/health; then
               echo "✓ Health check passed!"
               exit 0
             fi
-            echo "Health check attempt $i failed, retrying in 10s..."
+            echo "Attempt $i failed, retrying..."
             sleep 10
           done
-          
-          echo "✗ Health check failed after multiple attempts!"
           exit 1
 
       - name: Rollback on failure
@@ -167,44 +163,29 @@ jobs:
           echo "Deployment failed, initiating rollback..."
           ssh ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'ENDSSH'
             cd ${{ env.APP_DIR }}
-            
-            # Get previous image tag
             PREVIOUS_TAG=$(docker images ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }} --format "{{.Tag}}" | grep -v latest | head -n 2 | tail -n 1)
-            
             if [ -n "$PREVIOUS_TAG" ]; then
-              echo "Rolling back to previous image: $PREVIOUS_TAG"
-              docker-compose down || docker compose down
+              echo "Rolling back to: $PREVIOUS_TAG"
+              docker-compose down || true
               docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$PREVIOUS_TAG ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
-              docker-compose up -d || docker compose up -d
-              echo "Rollback completed"
-            else
-              echo "No previous image found, cannot rollback"
+              docker-compose up -d
             fi
           ENDSSH
 
-      - name: Send Slack notification
+      - name: Remove GitHub IP from SSH Whitelist
         if: always()
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          text: |
-            Backend Deployment ${{ job.status }}
-            Environment: Production
-            Commit: ${{ github.sha }}
-            Author: ${{ github.actor }}
-          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
-        continue-on-error: true
+        run: |
+          if [ -n "${{ env.SG_ID }}" ]; then
+            aws ec2 revoke-security-group-ingress \
+              --group-id ${{ env.SG_ID }} \
+              --protocol tcp \
+              --port 22 \
+              --cidr ${{ steps.ip.outputs.ipv4 }}/32 || true
+          fi
 
       - name: Deployment Summary
-        if: success()
+        if: always()
         run: |
-          echo "╔════════════════════════════════════════════════════════╗"
-          echo "║           Deployment Summary                           ║"
-          echo "╚════════════════════════════════════════════════════════╝"
-          echo "Status: ✓ SUCCESS"
-          echo "Environment: Production"
-          echo "Image: ${{ env.IMAGE_URI }}"
+          echo "Status: ${{ job.status }}"
+          echo "Branch: ${{ github.ref_name }}"
           echo "Commit: ${{ github.sha }}"
-          echo "Author: ${{ github.actor }}"
-          echo "Deployed at: $(date)"
-          echo "╚════════════════════════════════════════════════════════╝"
