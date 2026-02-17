@@ -39,7 +39,7 @@ const config: AppConfig = {
 
   // cookieExpiration as days (int); compute cookieMaxAge (ms) below
   cookieExpiration: getInt('COOKIE_EXPIRATION', false, 7), // days
-
+  frontendUrl: get('FRONTEND_URL', false, 'http://localhost:3001/auth/google/callback')!,
   maxSizeLimit: get('MAX_SIZE_LIMIT', false, '1mb')!,
 
   database: {

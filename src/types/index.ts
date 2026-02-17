@@ -166,6 +166,7 @@ export interface AppConfig {
   jwtExpiration: string | number;
   jwtRefreshExpiration: string | number;
   cookieExpiration: number;
+  frontendUrl: string;
   maxSizeLimit: string;
   database: DatabaseConfig;
   cors: {

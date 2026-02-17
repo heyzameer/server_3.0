@@ -303,8 +303,7 @@ export class AuthController {
       const accessToken = this.authService.generateAccessToken(user);
       const refreshToken = this.authService.generateRefreshToken(user);
       // Redirect to Frontend Callback Page with tokens
-      // TODO: Move valid URL to config
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001/auth/google/callback';
+      const frontendUrl = config.frontendUrl;
 
       res.redirect(`${frontendUrl}?accessToken=${accessToken}&refreshToken=${refreshToken}&user=${user._id}`);
     } catch (error) {
