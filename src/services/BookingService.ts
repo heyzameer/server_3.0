@@ -305,7 +305,13 @@ export class BookingService implements IBookingService {
     }
 
     async getAllBookings(filters?: any): Promise<IBooking[]> {
-        return this.bookingRepository.find(filters || {});
+        return this.bookingRepository.find(filters || {}, {
+            populate: [
+                { path: 'propertyId', select: 'propertyName address city' },
+                { path: 'userId', select: 'fullName email phone' }
+            ],
+            sort: { createdAt: -1 }
+        });
     }
 
     async updateBooking(bookingId: string, updateData: any): Promise<IBooking> {
