@@ -35,7 +35,7 @@ class Application {
     this.server = createServer(this.app);
     this.io = new SocketIOServer(this.server, {
       cors: {
-        origin: config.cors.origin,
+        origin: config.cors.origin.split(',').map(o => o.trim()),
         credentials: config.cors.credentials,
       },
     });
@@ -87,6 +87,9 @@ class Application {
   }
 
   private initializeRoutes(): void {
+    // Handle preflight requests for all routes
+    this.app.options('*', corsMiddleware);
+
     // API routes
     this.app.use('/api/v1', routes);
 
