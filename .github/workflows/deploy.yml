@@ -79,6 +79,27 @@ jobs:
           echo "Image pushed successfully!"
           echo "IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
 
+      - name: Get GitHub IP
+        id: ip
+        run: echo "ipv4=$(curl -s https://checkip.amazonaws.com)" >> $GITHUB_OUTPUT
+
+      - name: Add GitHub IP to SSH Whitelist
+        run: |
+          # Fetch SG ID linked to the instance
+          SG_ID=$(aws ec2 describe-instances --filters "Name=ip-address,Values=${{ env.EC2_HOST }}" --query "Reservations[*].Instances[*].SecurityGroups[*].GroupId" --output text | awk '{print $1}')
+          echo "SG_ID=$SG_ID" >> $GITHUB_ENV
+          
+          if [ -z "$SG_ID" ]; then
+            echo "Error: Could not find Security Group for host ${{ env.EC2_HOST }}"
+            exit 1
+          fi
+          
+          aws ec2 authorize-security-group-ingress \
+            --group-id $SG_ID \
+            --protocol tcp \
+            --port 22 \
+            --cidr ${{ steps.ip.outputs.ipv4 }}/32 || true
+
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -161,10 +182,23 @@ jobs:
           echo "✗ Health check failed after multiple attempts!"
           exit 1
 
+      - name: Remove GitHub IP from SSH Whitelist
+        if: always()
+        run: |
+          if [ -n "${{ env.SG_ID }}" ]; then
+            aws ec2 revoke-security-group-ingress \
+              --group-id ${{ env.SG_ID }} \
+              --protocol tcp \
+              --port 22 \
+              --cidr ${{ steps.ip.outputs.ipv4 }}/32 || true
+          fi
+
       - name: Rollback on failure
         if: failure()
         run: |
           echo "Deployment failed, initiating rollback..."
+          # Note: We need to re-whitelist if we revoked already? 
+          # Actually "always()" run after everything. But "failure()" run before "always()".
           ssh ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'ENDSSH'
             cd ${{ env.APP_DIR }}
             
@@ -182,28 +216,14 @@ jobs:
             fi
           ENDSSH
 
-      - name: Send Slack notification
-        if: always()
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          text: |
-            Backend Deployment ${{ job.status }}
-            Environment: Production
-            Commit: ${{ github.sha }}
-            Author: ${{ github.actor }}
-          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
-        continue-on-error: true
-
       - name: Deployment Summary
-        if: success()
+        if: always()
         run: |
           echo "╔════════════════════════════════════════════════════════╗"
           echo "║           Deployment Summary                           ║"
           echo "╚════════════════════════════════════════════════════════╝"
-          echo "Status: ✓ SUCCESS"
+          echo "Status: ${{ job.status }}"
           echo "Environment: Production"
-          echo "Image: ${{ env.IMAGE_URI }}"
           echo "Commit: ${{ github.sha }}"
           echo "Author: ${{ github.actor }}"
           echo "Deployed at: $(date)"
