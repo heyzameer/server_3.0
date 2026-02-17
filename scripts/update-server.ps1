@@ -16,6 +16,13 @@ ssh -i $KeyFile ubuntu@$IP @"
     echo '>>> Pulling new code from GitHub...'
     git pull origin dev
     
+    echo '>>> Fetching environment variables from AWS Parameter Store...'
+    if [ -f scripts/fetch-env-from-aws.sh ]; then
+        bash scripts/fetch-env-from-aws.sh
+    else
+        echo "Warning: fetch-env-from-aws.sh not found, using existing .env"
+    fi
+
     echo '>>> Rebuilding and restarting containers...'
     sudo docker-compose up -d --build
     
