@@ -493,7 +493,7 @@ export class AuthService implements IAuthService {
       }
 
       return decoded;
-    } catch (error) {
+    } catch {
       throw createError(ResponseMessages.INVALID_TOKEN, HttpStatus.UNAUTHORIZED);
     }
   }

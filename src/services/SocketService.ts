@@ -54,7 +54,7 @@ export class SocketService {
         };
 
         next();
-      } catch (error) {
+      } catch {
         next(new Error(ResponseMessages.INVALID_TOKEN));
       }
     });

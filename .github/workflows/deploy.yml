@@ -31,8 +31,7 @@ jobs:
         run: npm ci
 
       - name: Run Linting
-        run: npm run lint || echo "Linting failed but continuing for now (fix lints later)"
-        # properly: run: npm run lint
+        run: npm run lint
 
       - name: Test Build
         run: npm run build

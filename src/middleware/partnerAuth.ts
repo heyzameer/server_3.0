@@ -133,7 +133,7 @@ export const optionalPartnerAuth = async (req: Request, res: Response, next: Nex
     }
 
     next();
-  } catch (error) {
+  } catch {
     // Don't throw error for optional auth
     next();
   }

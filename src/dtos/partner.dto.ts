@@ -9,7 +9,7 @@ export interface RegisterPartnerReqDto {
     role?: string;
 }
 
-export interface PartnerFullRegistrationDto extends PartnerRegistrationData { }
+export type PartnerFullRegistrationDto = PartnerRegistrationData;
 
 export interface PartnerLoginOtpDto {
     email: string;
